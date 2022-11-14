@@ -20,7 +20,7 @@ var (
 	TokenNotValidYet = errors.New("Token not active yet")
 	TokenMalformed   = errors.New("That's not even a token")
 	TokenInvalid     = errors.New("Couldn't handle this token:")
-	SignKey          string // laravel 配置中的 JWT_SECRET
+	signKey          string // laravel 配置中的 JWT_SECRET
 )
 
 // 载荷
@@ -40,13 +40,13 @@ func NewJWT() *JWT {
 
 // 获取signKey
 func GetSignKey() string {
-	return SignKey
+	return signKey
 }
 
 // 这是SignKey
 func SetSignKey(key string) string {
-	SignKey = key
-	return SignKey
+	signKey = key
+	return signKey
 }
 
 // CreateToken 生成一个token
