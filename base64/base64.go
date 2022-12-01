@@ -19,10 +19,10 @@ func Encode(data string) string {
 // @Author xiaozhaofu 2022-12-01 12:00:36
 // @Param data
 // @Return string
-func Decode(data string) string {
+func Decode(data string) (string, error) {
 	str, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
-		return "base64 解码错误：" + err.Error()
+		return "", err
 	}
-	return string(str)
+	return string(str), nil
 }
