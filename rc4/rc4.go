@@ -11,9 +11,8 @@ import (
 // @Param key
 // @Param str
 // @Return string
-func New(key, str string) string {
+func New(key string, str []byte) []byte {
 	c, _ := rc4.NewCipher([]byte(key))
-	src := []byte(str)
-	c.XORKeyStream(src, src)
-	return string(src)
+	c.XORKeyStream(str, str)
+	return str
 }
