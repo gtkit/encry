@@ -10,8 +10,8 @@ import (
 // @Author xiaozhaofu 2022-12-01 12:00:22
 // @Param data
 // @Return string
-func Encode(data string) string {
-	return base64.StdEncoding.EncodeToString([]byte(data))
+func Encode(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
 }
 
 // @Title Decode
@@ -19,10 +19,7 @@ func Encode(data string) string {
 // @Author xiaozhaofu 2022-12-01 12:00:36
 // @Param data
 // @Return string
-func Decode(data string) ([]byte, error) {
-	str, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return nil, err
-	}
-	return str, nil
+func Decode(data string) (str []byte, err error) {
+	str, err = base64.StdEncoding.DecodeString(data)
+	return
 }
