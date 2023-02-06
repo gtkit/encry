@@ -3,8 +3,10 @@ package rsa
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -13,7 +15,8 @@ import (
 	"runtime"
 )
 
-/**
+/*
+*
 公钥加密-分段
 */
 func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err error) {
@@ -53,11 +56,13 @@ func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err erro
 		buffer.Write(bytesOnce)
 		offSet = endIndex
 	}
+	// 由于加密后是字节流，直接输出查看会乱码，因此，为了便于语言直接加解密，这里将加密之后的数据进行base64编码,. 输出加密好并base64编码的串，可用于其他语言解密
 	bytesEncrypt = base64.StdEncoding.EncodeToString(buffer.Bytes())
 	return
 }
 
-/**
+/*
+*
 私钥解密-分段
 */
 func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err error) {
@@ -177,6 +182,115 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 		return Error(file, line+1, err.Error())
 	}
 	err = pem.Encode(file, block)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return Error(file, line+1, err.Error())
+	}
+	return nil
+}
+
+// Rsa公钥加密
+// plainText 明文
+// filePath 公钥文件路径
+// 返回加密后的结果 错误
+func RsaEncrypt(plainText []byte, filePath string) ([]byte, error) {
+	// get pem.Block
+	block, err := GetKey(filePath)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	// X509
+	publicInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	publicKey, flag := publicInterface.(*rsa.PublicKey)
+	if flag == false {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, "error occur when trans to *rsa.Publickey")
+	}
+	// encrypt
+	cipherText, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	return cipherText, nil
+}
+
+// Rsa私钥解密
+// cipherText 密文
+// filePath 私钥文件路径
+// 返回解密后的结果 错误
+func RsaDecrypt(cipherText []byte, filePath string) (plainText []byte, err error) {
+	// get pem.Block
+	block, err := GetKey(filePath)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	// get privateKey
+	privateKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	// get plainText use privateKey
+	plainText, err3 := rsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
+	if err3 != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err3.Error())
+	}
+	return plainText, err
+}
+
+// Rsa签名
+// plainText 明文
+// filePath 私钥文件路径
+// 返回签名后的数据 错误
+func RsaSign(plainText []byte, priFilePath string) ([]byte, error) {
+	// get pem.Block
+	block, err := GetKey(priFilePath)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	priKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	// calculate hash value
+	hashText := sha512.Sum512(plainText)
+	// Sign with hashText
+	signText, err := rsa.SignPKCS1v15(rand.Reader, priKey, crypto.SHA512, hashText[:])
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return nil, Error(file, line+1, err.Error())
+	}
+	return signText, nil
+}
+
+// Rsa签名验证
+// plainText 明文
+// filePath 公钥文件路径
+// 返回签名后的数据 错误
+func RsaVerify(plainText []byte, pubFilePath string, signText []byte) error {
+	// get pem.Block
+	block, err := GetKey(pubFilePath)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return Error(file, line+1, err.Error())
+	}
+	// x509
+	pubInter, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return Error(file, line+1, err.Error())
+	}
+	pubKey := pubInter.(*rsa.PublicKey)
+	// hashText to verify
+	hashText := sha512.Sum512(plainText)
+	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA512, hashText[:], signText)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		return Error(file, line+1, err.Error())
