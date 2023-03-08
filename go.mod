@@ -1,4 +1,4 @@
-module gitlab.superjq.com/go-tools/encry
+module github.com/gtkit/encry
 
 go 1.17
 
