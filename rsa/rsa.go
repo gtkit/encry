@@ -4,6 +4,7 @@ package rsa
 import (
 	"bytes"
 	"crypto"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
@@ -62,7 +63,8 @@ func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err erro
 }
 
 /*
-*
+	RsaDecryptBlock
+
 私钥解密-分段
 */
 func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err error) {
@@ -268,6 +270,58 @@ func RsaSign(plainText []byte, priFilePath string) ([]byte, error) {
 		return nil, Error(file, line+1, err.Error())
 	}
 	return signText, nil
+}
+
+// 计算签名 PKCS8 实现php中的`OPENSSL_ALGO_MD5`
+/**
+private function sign($postdata)
+{
+	$signstr = $this->getSortParams($postdata); // 字典排序链接成字符串
+	$pem =  wordwrap($this->merchant_private_key(), 64, "\n", true);
+	$pem = "-----BEGIN PRIVATE KEY-----\n" . $pem . "\n-----END PRIVATE KEY-----";
+
+	$merchant_private_key = openssl_get_privatekey($pem);
+	openssl_sign($signstr, $sign_info, $merchant_private_key, OPENSSL_ALGO_MD5);
+	$sign = base64_encode($sign_info);
+	return $sign;
+}
+function getSortParams($param = [])
+{
+	unset($param['sign_type']);
+	unset($param['sign']);
+	ksort($param);
+	$signstr = '';
+	if (is_array($param)) {
+		foreach ($param as $key => $value) {
+			if ($value == '') {
+				continue;
+			}
+			$signstr .= $key . '=' . $value . '&';
+		}
+		$signstr = rtrim($signstr, '&');
+	}
+	return $signstr;
+}
+*/
+func RsaSignAsPHP(signStr, priKey string) (string, error) {
+	hashMd5 := md5.Sum([]byte(signStr))
+	hashed := hashMd5[:]
+	block, _ := pem.Decode([]byte(priKey))
+	if block == nil {
+		return "", nil
+	}
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+
+	if err != nil {
+		return "", err
+	}
+	pri, ok := privateKey.(*rsa.PrivateKey)
+	if ok {
+		signature, err := rsa.SignPKCS1v15(rand.Reader, pri, crypto.MD5, hashed)
+		return base64.StdEncoding.EncodeToString(signature), err
+	}
+
+	return "", err
 }
 
 // Rsa签名验证
