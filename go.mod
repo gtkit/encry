@@ -7,10 +7,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 )
 
-require (
-	github.com/speps/go-hashids v2.0.0+incompatible
-	gitlab.superjq.com/go-tools/encry v0.0.0-20230301065254-0369b42cbfe9
-)
+require github.com/speps/go-hashids v2.0.0+incompatible
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
