@@ -3,8 +3,7 @@ package hmac
 import (
 	"crypto/hmac"
 	"crypto/sha1"
-
-	"gitlab.superjq.com/go-tools/encry/base64"
+	"github.com/gtkit/encry/base64"
 )
 
 func Sha1(keyStr, value string) string {
