@@ -15,7 +15,7 @@ type JWT struct {
 	SigningKey []byte
 }
 
-// 载荷
+// CustomClaims 载荷
 type CustomClaims struct {
 	Subject int64  `json:"sub"`
 	Prv     string `json:"prv"`
@@ -28,7 +28,7 @@ var (
 	j    *JWT
 )
 
-// 新建一个jwt实例
+// NewJWT 新建一个jwt实例
 func NewJWT() *JWT {
 	once.Do(func() {
 		j = &JWT{
@@ -38,12 +38,12 @@ func NewJWT() *JWT {
 	return j
 }
 
-// 获取signKey
+// GetSignKey 获取signKey
 func GetSignKey() string {
 	return signKey
 }
 
-// 这是SignKey
+// SetSignKey 这是SignKey
 func SetSignKey(key string) string {
 	signKey = key
 	return signKey

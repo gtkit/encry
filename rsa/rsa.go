@@ -4,6 +4,7 @@ package rsa
 import (
 	"encoding/pem"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 )
@@ -13,7 +14,15 @@ import (
 // 返回pem块和错误
 func GetKey(filePath string) (*pem.Block, error) {
 	file, err := os.Open(filePath)
-	defer file.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			log.Println(Error(file, line+1, err.Error()))
+			return
+		}
+	}(file)
+
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		return nil, Error(file, line+1, err.Error())

@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
+	"log"
 	"os"
 	"runtime"
 )
@@ -35,7 +35,14 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 	}
 	// just joint, caller must let dirPath right
 	file, err := os.Create(dirPath + "private.pem")
-	defer file.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			log.Println(Error(file, line+1, err.Error()))
+			return
+		}
+	}(file)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		return Error(file, line+1, err.Error())
@@ -82,7 +89,16 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err error) {
 
 	block, err := GetKey(filePath)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return "", Error(file, line+1, err.Error())
+	}
+
 	pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		return "", Error(file, line+1, err.Error())
+	}
 
 	// 该断言表达式会返回 x 的值（也就是 value）和一个布尔值（也就是 ok）
 	pub, ok := pubKey.(*rsa.PublicKey)
@@ -128,7 +144,7 @@ func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err erro
 	// 或者读取文件
 	block, err := GetKey(filePath)
 	if err != nil {
-		fmt.Println("getkey error:", err)
+		log.Println("getkey error:", err)
 	}
 
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -174,7 +190,8 @@ func RsaEncrypt(plainText []byte, filePath string) ([]byte, error) {
 		return nil, Error(file, line+1, err.Error())
 	}
 	publicKey, flag := publicInterface.(*rsa.PublicKey)
-	if flag == false {
+	// if flag == false {
+	if !flag {
 		_, file, line, _ := runtime.Caller(0)
 		return nil, Error(file, line+1, "error occur when trans to *rsa.Publickey")
 	}

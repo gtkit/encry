@@ -22,9 +22,9 @@ var (
 	ErrTokenInvalidId            = errors.New("token has invalid id")
 	ErrTokenInvalidClaims        = errors.New("token has invalid claims")
 	ErrInvalidType               = errors.New("invalid type for claim")
-	TokenExpired                 = errors.New("Token is expired")
-	TokenNotValidYet             = errors.New("Token not active yet")
-	TokenMalformed               = errors.New("That's not even a token")
-	TokenInvalid                 = errors.New("Couldn't handle this token:")
+	TokenExpired                 = errors.New("token is expired")
+	TokenNotValidYet             = errors.New("token not active yet")
+	TokenMalformed               = errors.New("that's not even a token")
+	TokenInvalid                 = errors.New("couldn't handle this token")
 	signKey                      string // laravel 配置中的 JWT_SECRET
 )

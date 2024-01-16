@@ -100,11 +100,10 @@ func RsaSignCS8MD5(plainText, priFilePath string) (string, error) {
 	return "", Error(file, line+1, "private key error")
 }
 
-// RsaVerifyMD5 Rsa签名验证 PKCS8
+// RsaVerifyMD5 验证签名 PKCS8 MD5
 // plainText 明文, 参数字典排序后的字符串
 // sign 签名
 // pubFilePath 公钥 路径
-
 func RsaVerifyMD5(plainText, sign, pubFilePath string) error {
 	// block, _ := pem.Decode([]byte(pubkey))
 	block, err := GetKey(pubFilePath)

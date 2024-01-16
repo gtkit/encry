@@ -16,7 +16,7 @@ import (
 func SortByDic(data map[string]interface{}, delimiter, connector string) string {
 	keys := make([]string, 0, len(data))
 
-	for k, _ := range data {
+	for k := range data {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

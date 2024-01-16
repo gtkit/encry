@@ -1,10 +1,10 @@
 module github.com/gtkit/encry
 
-go 1.17
+go 1.21
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.0.0
-	github.com/stretchr/testify v1.8.1
+	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/stretchr/testify v1.8.4
 )
 
 require github.com/speps/go-hashids v2.0.0+incompatible

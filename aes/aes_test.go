@@ -20,6 +20,6 @@ func BenchmarkEncryptAndDecrypt(b *testing.B) {
 	aes := New(key, iv)
 	for i := 0; i < b.N; i++ {
 		encryptString, _ := aes.Encrypt("123456")
-		aes.Decrypt(encryptString)
+		_, _ = aes.Decrypt(encryptString)
 	}
 }
