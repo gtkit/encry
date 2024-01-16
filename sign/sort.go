@@ -10,9 +10,9 @@ import (
 	"github.com/gtkit/encry/md5"
 )
 
-// SortByDic 字典排序, map[string]interface{} 类型
-// delimiter 分隔符, 每组kv之间的分隔符, 一般为&
-// connector 连接符, key和value连接, 一般为 = 号
+// SortByDic 字典排序, map[string]interface{} 类型.
+// delimiter 分隔符, 每组kv之间的分隔符, 一般为&.
+// connector 连接符, key和value连接, 一般为 = 号.
 func SortByDic(data map[string]interface{}, delimiter, connector string) string {
 	keys := make([]string, 0, len(data))
 
@@ -51,11 +51,9 @@ func SortByDic(data map[string]interface{}, delimiter, connector string) string 
 	return strings.TrimRight(buf.String(), delimiter)
 }
 
-// MapSign map 排序后字符串参数获取 sign
+// MapSign map 排序后字符串参数获取 sign.
 func MapSign(signStr, appSecret string) string {
-
 	var buf bytes.Buffer
-
 	if appSecret != "" {
 		buf.WriteString(appSecret)
 	}
@@ -67,9 +65,7 @@ func MapSign(signStr, appSecret string) string {
 	}
 
 	returnStr := buf.String()
-	// fmt.Println("------------return str : ", returnStr)
 
 	s := md5.New(returnStr)
-
 	return strings.ToUpper(s)
 }

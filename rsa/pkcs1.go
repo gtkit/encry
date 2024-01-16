@@ -13,12 +13,16 @@ import (
 	"runtime"
 )
 
-// GenerateRsaKey RSA是算法，ECB是分块模式，PKCS1Padding是填充模式
-// 整个构成一个完整的加密算法
-// 生成RSA密钥对
-// keySize 密钥大小
-// dirPath 密钥对文件路径
-// 返回错误
+const (
+	PKCS1PaddingLength = 11
+)
+
+// GenerateRsaKey RSA是算法，ECB是分块模式，PKCS1Padding是填充模式.
+// 整个构成一个完整的加密算法.
+// 生成RSA密钥对.
+// keySize 密钥大小.
+// dirPath 密钥对文件路径.
+// 返回错误.
 func GenerateRsaKey(keySize int, dirPath string) error {
 	// ---------------------------- get  privateKey
 	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
@@ -36,10 +40,9 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 	// just joint, caller must let dirPath right
 	file, err := os.Create(dirPath + "private.pem")
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
+		if ferr := f.Close(); ferr != nil {
 			_, file, line, _ := runtime.Caller(0)
-			log.Println(Error(file, line+1, err.Error()))
+			log.Println(Error(file, line+1, ferr.Error()))
 			return
 		}
 	}(file)
@@ -83,39 +86,33 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 	return nil
 }
 
-// RsaEncryptBlock 公钥加密-分段
-// src 待加密的数据
-// filePath 公钥文件路径
-func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err error) {
-
-	block, err := GetKey(filePath)
-	if err != nil {
+// EncryptBlock 公钥加密-分段.
+// src 待加密的数据.
+// filePath 公钥文件路径.
+func EncryptBlock(src []byte, filePath string) (bytesEncrypt string, err error) {
+	block, berr := GetKey(filePath)
+	if berr != nil {
 		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
+		return "", Error(file, line+1, berr.Error())
 	}
 
-	pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
+	pubKey, perr := x509.ParsePKIXPublicKey(block.Bytes)
+	if perr != nil {
 		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
+		return "", Error(file, line+1, perr.Error())
 	}
 
 	// 该断言表达式会返回 x 的值（也就是 value）和一个布尔值（也就是 ok）
 	pub, ok := pubKey.(*rsa.PublicKey)
 	if !ok {
 		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
-	}
-
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
+		return "", Error(file, line+1, "非 rsa.PublicKey 指针类型")
 	}
 
 	keySize, srcSize := pub.Size(), len(src)
 
 	// 单次加密的长度需要减掉padding的长度，PKCS1为11
-	offSet, once := 0, keySize-11
+	offSet, once := 0, keySize-PKCS1PaddingLength
 	buffer := bytes.Buffer{}
 	for offSet < srcSize {
 		endIndex := offSet + once
@@ -123,10 +120,10 @@ func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err erro
 			endIndex = srcSize
 		}
 		// 加密一部分
-		bytesOnce, err := rsa.EncryptPKCS1v15(rand.Reader, pub, src[offSet:endIndex])
-		if err != nil {
+		bytesOnce, encerr := rsa.EncryptPKCS1v15(rand.Reader, pub, src[offSet:endIndex])
+		if encerr != nil {
 			_, file, line, _ := runtime.Caller(0)
-			return "", Error(file, line+1, err.Error())
+			return "", Error(file, line+1, encerr.Error())
 		}
 		buffer.Write(bytesOnce)
 		offSet = endIndex
@@ -136,10 +133,10 @@ func RsaEncryptBlock(src []byte, filePath string) (bytesEncrypt string, err erro
 	return
 }
 
-// RsaDecryptBlock 私钥解密-分段
-// src 待解密的数据
-// filePath 私钥文件路径
-func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err error) {
+// DecryptBlock 私钥解密-分段.
+// src 待解密的数据.
+// filePath 私钥文件路径.
+func DecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err error) {
 	// block, _ := pem.Decode(privateKeyBytes)
 	// 或者读取文件
 	block, err := GetKey(filePath)
@@ -161,9 +158,9 @@ func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err erro
 		if endIndex > srcSize {
 			endIndex = srcSize
 		}
-		bytesOnce, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, src[offSet:endIndex])
-		if err != nil {
-			return nil, err
+		bytesOnce, decerr := rsa.DecryptPKCS1v15(rand.Reader, privateKey, src[offSet:endIndex])
+		if decerr != nil {
+			return nil, decerr
 		}
 		buffer.Write(bytesOnce)
 		offSet = endIndex
@@ -172,11 +169,11 @@ func RsaDecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err erro
 	return
 }
 
-// RsaEncrypt Rsa公钥加密
-// plainText 明文
-// filePath 公钥文件路径
-// 返回加密后的结果 错误
-func RsaEncrypt(plainText []byte, filePath string) ([]byte, error) {
+// Encrypt Rsa公钥加密.
+// plainText 明文.
+// filePath 公钥文件路径.
+// 返回加密后的结果 错误.
+func Encrypt(plainText []byte, filePath string) ([]byte, error) {
 	// get pem.Block
 	block, err := GetKey(filePath)
 	if err != nil {
@@ -204,11 +201,11 @@ func RsaEncrypt(plainText []byte, filePath string) ([]byte, error) {
 	return cipherText, nil
 }
 
-// RsaDecrypt Rsa私钥解密
-// cipherText 密文
-// filePath 私钥文件路径
-// 返回解密后的结果 错误
-func RsaDecrypt(cipherText []byte, filePath string) (plainText []byte, err error) {
+// Decrypt Rsa私钥解密.
+// cipherText 密文.
+// filePath 私钥文件路径.
+// 返回解密后的结果 错误.
+func Decrypt(cipherText []byte, filePath string) (plainText []byte, err error) {
 	// get pem.Block
 	block, err := GetKey(filePath)
 	if err != nil {

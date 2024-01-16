@@ -6,16 +6,16 @@ import (
 	"log"
 	"sync"
 	"time"
-	// "github.com/golang-jwt/jwt"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWT 签名结构
+// JWT 签名结构.
 type JWT struct {
 	SigningKey []byte
 }
 
-// CustomClaims 载荷
+// CustomClaims 载荷.
 type CustomClaims struct {
 	Subject int64  `json:"sub"`
 	Prv     string `json:"prv"`
@@ -28,7 +28,7 @@ var (
 	j    *JWT
 )
 
-// NewJWT 新建一个jwt实例
+// NewJWT 新建一个jwt实例.
 func NewJWT() *JWT {
 	once.Do(func() {
 		j = &JWT{
@@ -38,22 +38,22 @@ func NewJWT() *JWT {
 	return j
 }
 
-// GetSignKey 获取signKey
+// GetSignKey 获取signKey.
 func GetSignKey() string {
 	return signKey
 }
 
-// SetSignKey 这是SignKey
+// SetSignKey 这是SignKey.
 func SetSignKey(key string) string {
 	signKey = key
 	return signKey
 }
 
-// ParseToken 解析Toknen
+// ParseToken 解析Toknen.
 /**
- * 解析token
- * @method ParseToken
- * @param  {[type]}    tokenString string [description]
+ * 解析token.
+ * @method ParseToken.
+ * @param  {[type]}    tokenString string [description].
  */
 func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -71,15 +71,15 @@ func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		return claims, nil
 	}
-	return nil, TokenInvalid
+	return nil, ErrTokenInvalid
 }
 
-// RefreshToken 更新token
+// RefreshToken 更新token.
 /**
- * 更新token
- * @method RefreshToken
- * @param  {[type]}      tokenString string [description]
- * @param  {[type]}      duration    time.Duration [description]
+ * 更新token.
+ * @method RefreshToken.
+ * @param  {[type]}      tokenString string [description].
+ * @param  {[type]}      duration    time.Duration [description].
  */
 func (j *JWT) RefreshToken(tokenString string, duration time.Duration) (string, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -95,19 +95,17 @@ func (j *JWT) RefreshToken(tokenString string, duration time.Duration) (string, 
 		return j.CreateToken(*claims)
 	}
 
-	return "", TokenInvalid
+	return "", ErrTokenInvalid
 }
 
-// GenerateToken 生成token
+// GenerateToken 生成token.
 /**
- * 生成token
- * @method GenerateToken
- * @param  {[type]}       uid      int64  [description]
- * @param  {[type]}       duration time.Duration [description]
+ * 生成token.
+ * @method GenerateToken.
+ * @param  {[type]}       uid      int64  [description].
+ * @param  {[type]}       duration time.Duration [description].
  */
 func (j *JWT) GenerateToken(uid int64, duration time.Duration) (string, error) {
-
-	// now := time.Now().Unix()
 	prv := "23bd5c8949f600adb39e701c400872db7a5976f7"
 	role := "client"
 	claims := CustomClaims{
@@ -134,7 +132,7 @@ func (j *JWT) GenerateToken(uid int64, duration time.Duration) (string, error) {
 	return token, nil
 }
 
-// CreateToken 生成一个token
+// CreateToken 生成一个token.
 func (j *JWT) CreateToken(claims CustomClaims) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Claims = claims
