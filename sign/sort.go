@@ -37,8 +37,11 @@ func SortByDic(data map[string]interface{}, delimiter, connector string) string 
 		case int:
 			buf.WriteString(strconv.FormatInt(int64(vv), 10))
 		case int8:
+			buf.WriteString(strconv.FormatInt(int64(vv), 10))
 		case int16:
+			buf.WriteString(strconv.FormatInt(int64(vv), 10))
 		case int32:
+			buf.WriteString(strconv.FormatInt(int64(vv), 10))
 		case int64:
 			buf.WriteString(strconv.FormatInt(vv, 10))
 		default:

@@ -1,4 +1,3 @@
-// @Author xiaozhaofu 2022/11/11 10:04:00
 package md5
 
 import (
