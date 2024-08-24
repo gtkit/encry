@@ -6,24 +6,57 @@ import (
 	"github.com/gtkit/encry/aes"
 )
 
-const (
-	key = "IgkibX71IEf382PT"
-	iv  = "IgkibX71IEf382PT"
-)
+func TestCBCEncrypt(t *testing.T) {
 
-func TestEncrypt(t *testing.T) {
-	t.Log(aes.New(key, iv).Encrypt("123456"))
+	var (
+		key = "IgkibX71IEf382PT" //
+
+	)
+	cbc := aes.NewCBC(key)
+	encryptString, err := cbc.Encrypt([]byte("123456"))
+	if err != nil {
+		t.Error("encrypt error", err)
+	}
+	t.Log(encryptString)
+
+	decryptString, err := cbc.Decrypt(encryptString)
+	if err != nil {
+		t.Error("decrypt error", err)
+	}
+	t.Log(decryptString)
+
 }
 
-func TestDecrypt(t *testing.T) {
-	t.Log(aes.New(key, iv).Decrypt("GO-ri84zevE-z1biJwfQPw=="))
+func TestCFBEncrypt(t *testing.T) {
+
+	var (
+		key = "IgkibX71IEf382P3" //
+
+	)
+	cbc := aes.NewCFB(key)
+	encryptString, err := cbc.Encrypt([]byte("123456"))
+	if err != nil {
+		t.Error("encrypt error", err)
+	}
+	t.Log(encryptString)
+
+	decryptString, err := cbc.Decrypt(encryptString)
+	if err != nil {
+		t.Error("decrypt error", err)
+	}
+	t.Log(decryptString)
+
 }
 
 func BenchmarkEncryptAndDecrypt(b *testing.B) {
+	var (
+		key = "IgkibX71IEf382PT" //
+	)
+
 	b.ResetTimer()
-	aesn := aes.New(key, iv)
+	aesn := aes.NewCBC(key)
 	for i := 0; i < b.N; i++ {
-		encryptString, _ := aesn.Encrypt("123456")
+		encryptString, _ := aesn.Encrypt([]byte("123456"))
 		_, _ = aesn.Decrypt(encryptString)
 	}
 }

@@ -1,16 +1,15 @@
-package pass
+package passwd
 
 import (
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	COST = 12
-	Len  = 60
+	Len = 60
 )
 
-// Hash 使用 bcrypt 对密码进行加密.
-func HashMake(password string, cost ...int) (string, error) {
+// Encrypt 使用 bcrypt 对密码进行加密.
+func Encrypt(password string, cost ...int) (string, error) {
 	// GenerateFromPassword 的第二个参数是 cost 值。建议大于 12，数值越大耗费时间越长
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), passCost(cost...))
 	if err != nil {
@@ -19,9 +18,14 @@ func HashMake(password string, cost ...int) (string, error) {
 	return string(bytes), nil
 }
 
-// Check 对比明文密码和数据库的哈希值.
-func Check(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+// Verify 验证明文密码和数据库的哈希值.
+//
+//	password 明文密码.
+//	hashedPassword 数据库的哈希值.
+//
+// 注意：如果密码是哈希过的数据，则需要先解密再验证.
+func Verify(password, hashedPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
 }
 
@@ -32,14 +36,13 @@ func IsHashed(str string) bool {
 }
 
 // Compare 对比明文密码和数据库的哈希值.
-func Compare(e string, p string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(e), []byte(p))
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+// hashedPassword 数据库的哈希值.
+// password 明文密码.
+func Compare(password, hashedPassword string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
+// HashNeedRefresh 判断密码是否需要刷新.
 func HashNeedRefresh(hashedPwd string, cost ...int) bool {
 	hashCost, err := bcrypt.Cost([]byte(hashedPwd))
 	return err != nil || hashCost != passCost(cost...)
