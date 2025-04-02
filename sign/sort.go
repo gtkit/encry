@@ -10,10 +10,10 @@ import (
 	"github.com/gtkit/encry/md5"
 )
 
-// SortByDic 字典排序, map[string]interface{} 类型.
+// SortByDic 字典排序, map[string]any 类型.
 // delimiter 分隔符, 每组kv之间的分隔符, 一般为&.
 // connector 连接符, key和value连接, 一般为 = 号.
-func SortByDic(data map[string]interface{}, delimiter, connector string) string {
+func SortByDic(data map[string]any, delimiter string, connector ...string) string {
 	keys := make([]string, 0, len(data))
 
 	for k := range data {
@@ -28,8 +28,8 @@ func SortByDic(data map[string]interface{}, delimiter, connector string) string 
 			continue
 		}
 		buf.WriteString(k)
-		if connector != "" {
-			buf.WriteString(connector)
+		if connector[0] != "" {
+			buf.WriteString(connector[0])
 		}
 		switch vv := data[k].(type) {
 		case string:
@@ -47,7 +47,7 @@ func SortByDic(data map[string]interface{}, delimiter, connector string) string 
 		default:
 			continue
 		}
-		if len(delimiter) > 0 {
+		if delimiter != "" {
 			buf.WriteString(delimiter)
 		}
 	}

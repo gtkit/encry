@@ -20,6 +20,15 @@ type CustomClaims struct {
 	Subject int64  `json:"sub"`
 	Prv     string `json:"prv"`
 	Role    string `json:"role"`
+	// RegisteredClaims 结构体实现了 Claims 接口继承了  Valid() 方法
+	// JWT 规定了7个官方字段，提供使用:
+	// - iss (issuer)：发布者
+	// - sub (subject)：主题
+	// - iat (Issued At)：生成签名的时间
+	// - exp (expiration time)：签名过期时间
+	// - aud (audience)：观众，相当于接受者
+	// - nbf (Not Before)：生效时间
+	// - jti (JWT ID)：编号
 	jwt.RegisteredClaims
 }
 
@@ -29,24 +38,13 @@ var (
 )
 
 // NewJWT 新建一个jwt实例.
-func NewJWT() *JWT {
+func NewJWT(key string) *JWT {
 	once.Do(func() {
 		j = &JWT{
-			[]byte(GetSignKey()),
+			[]byte(key),
 		}
 	})
 	return j
-}
-
-// GetSignKey 获取signKey.
-func GetSignKey() string {
-	return signKey
-}
-
-// SetSignKey 这是SignKey.
-func SetSignKey(key string) string {
-	signKey = key
-	return signKey
 }
 
 // ParseToken 解析Toknen.
@@ -55,14 +53,14 @@ func SetSignKey(key string) string {
  * @method ParseToken.
  * @param  {[type]}    tokenString string [description].
  */
-func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+func (j *JWT) ParseToken(tokenString string, opt ...jwt.ParserOption) (*CustomClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			log.Panicln("unexpected signing method")
+			log.Println("jwt parse error: unexpected signing method")
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.SigningKey, nil
-	})
+	}, opt...)
 
 	if err != nil {
 		return nil, err
@@ -81,10 +79,10 @@ func (j *JWT) ParseToken(tokenString string) (*CustomClaims, error) {
  * @param  {[type]}      tokenString string [description].
  * @param  {[type]}      duration    time.Duration [description].
  */
-func (j *JWT) RefreshToken(tokenString string, duration time.Duration) (string, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+func (j *JWT) RefreshToken(tokenString string, duration time.Duration, opt ...jwt.ParserOption) (string, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (any, error) {
 		return j.SigningKey, nil
-	})
+	}, opt...)
 
 	if err != nil {
 		return "", err
@@ -92,10 +90,29 @@ func (j *JWT) RefreshToken(tokenString string, duration time.Duration) (string, 
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(duration))
-		return j.CreateToken(*claims)
+		return createToken(*claims, j.SigningKey)
 	}
 
 	return "", ErrTokenInvalid
+}
+
+// claims 可选参数.
+type ClaimsOptions func(*CustomClaims)
+
+func WithRole(role string) ClaimsOptions {
+	return func(claims *CustomClaims) {
+		claims.Role = role
+	}
+}
+func WithPrv(prv string) ClaimsOptions {
+	return func(claims *CustomClaims) {
+		claims.Prv = prv
+	}
+}
+func WithDuration(duration time.Duration) ClaimsOptions {
+	return func(claims *CustomClaims) {
+		claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(duration))
+	}
 }
 
 // GenerateToken 生成token.
@@ -103,28 +120,28 @@ func (j *JWT) RefreshToken(tokenString string, duration time.Duration) (string, 
  * 生成token.
  * @method GenerateToken.
  * @param  {[type]}       uid      int64  [description].
- * @param  {[type]}       duration time.Duration [description].
+ * @param  {[type]}       duration time.Duration [签名过期时间,默认1小时].
  */
-func (j *JWT) GenerateToken(uid int64, duration time.Duration) (string, error) {
-	prv := "23bd5c8949f600adb39e701c400872db7a5976f7"
-	role := "client"
-	claims := CustomClaims{
+func (j *JWT) GenerateToken(uid int64, options ...ClaimsOptions) (string, error) {
+	claims := &CustomClaims{
 		uid,
-		prv,
-		role,
+		"",
+		"",
 		jwt.RegisteredClaims{
-			// duration := time.Hour * 24 * 90
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "",
-			Subject:   "",
-			ID:        "",
-			Audience:  []string{},
+			Issuer:    "",                                            // 发布者
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), // 签名过期时间
+			IssuedAt:  jwt.NewNumericDate(time.Now()),                // 生成签名的时间 （后续刷新 Token 不会更新）
+			NotBefore: jwt.NewNumericDate(time.Now()),                // 生效时间
 		},
 	}
+	log.Printf("claims 1: %+v", claims)
 
-	token, err := j.CreateToken(claims)
+	for _, opt := range options {
+		opt(claims)
+	}
+	log.Printf("claims 2: %+v", claims)
+
+	token, err := createToken(*claims, j.SigningKey)
 	if err != nil {
 		return "", err
 	}
@@ -132,11 +149,9 @@ func (j *JWT) GenerateToken(uid int64, duration time.Duration) (string, error) {
 	return token, nil
 }
 
-// CreateToken 生成一个token.
-func (j *JWT) CreateToken(claims CustomClaims) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	token.Claims = claims
-	res, err := token.SignedString(j.SigningKey)
+func createToken(claims CustomClaims, signKey []byte) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	res, err := token.SignedString(signKey)
 	log.Println("err:", err)
 	return res, err
 }

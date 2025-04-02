@@ -9,16 +9,21 @@ import (
 
 var _ AES = (*cbc)(nil)
 
+//	type cbc struct {
+//		key string // 秘钥：16, 24, 32字节长度的字符串，用于加密解密
+//		iv  []byte // 初始向量：一段固定长度的随机数，用于增强AES加密的强度。IV的长度通常为16字节（即128位），它必须与密钥一起使用
+//	}
 type cbc struct {
-	key string // 秘钥：16, 24, 32字节长度的字符串，用于加密解密
-	iv  []byte // 初始向量：一段固定长度的随机数，用于增强AES加密的强度。IV的长度通常为16字节（即128位），它必须与密钥一起使用
+	aesImpl
 }
 
 // New 创建一个新的Aes实例
 func NewCBC(key string) AES {
 	return &cbc{
-		key: key,
-		iv:  iv(),
+		aesImpl: aesImpl{
+			key: key,
+			iv:  iv(),
+		},
 	}
 }
 

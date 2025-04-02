@@ -157,7 +157,7 @@ linters:
     - typecheck # Like the front-end of a Go compiler, parses and type-checks Go code
     - unused # Checks Go code for unused constants, variables, functions and types
     ## disabled by default
-    # - asasalint # Check for pass []any as any in variadic func(...any)
+    # - asasalint # Check for pass []interface{} as interface{} in variadic func(...interface{})
     - asciicheck # Simple linter to check that your code does not contain non-ASCII identifiers
     - bidichk # Checks for dangerous unicode character sequences
     - bodyclose # checks whether HTTP response body is closed successfully
@@ -214,12 +214,12 @@ linters:
     #- goheader # Checks is file header matches to pattern
     #- ireturn # Accept Interfaces, Return Concrete Types
     #- prealloc # [premature optimization, but can be used in some cases] Finds slice declarations that could potentially be preallocated
-    #- varnamelen # [great idea, but too many false positives] checks that the length of a variable's name matches its scope
+    #- varnamelen # [great idea, but too minterface{} false positives] checks that the length of a variable's name matches its scope
     #- wrapcheck # Checks that errors returned from external packages are wrapped
     ## disabled
     #- containedctx # containedctx is a linter that detects struct contained context.Context field
     #- depguard # [replaced by gomodguard] Go linter that checks if package imports are in a list of acceptable packages
-    #- dogsled # Checks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
+    #- dogsled # Checks assignments with too minterface{} blank identifiers (e.g. x, _, _, _, := f())
     #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] Checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted.
     #- forcetypeassert # [replaced by errcheck] finds forced type assertions
     #- gci # Gci controls golang package import order and makes it always deterministic.
@@ -234,7 +234,7 @@ linters:
     #- misspell # [useless] Finds commonly misspelled English words in comments
     #- nlreturn # [too strict and mostly code is not more readable] nlreturn checks for a new line before return and branch statements to increase code clarity
     #- nosnakecase # Detects snake case of variable naming and function name. # TODO: maybe enable after https://github.com/sivchari/nosnakecase/issues/14
-    #- paralleltest # [too many false positives] paralleltest detects missing usage of t.Parallel() method in your Go test
+    #- paralleltest # [too minterface{} false positives] paralleltest detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # Checks the struct tags.
     #- thelper # thelper detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- wsl # [too strict and mostly code is not more readable] Whitespace Linter - Forces you to use empty lines!

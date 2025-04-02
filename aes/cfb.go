@@ -5,19 +5,24 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 )
 
 type cfb struct {
-	key string
-	iv  []byte
+	// key string //
+	// iv  []byte
+	aesImpl
 }
 
-// NewCFB returns a new AES-256-CFB encrypter/decrypter.
+// NewCFB returns a new AES.
 func NewCFB(key string) AES {
-	return &cfb{key: key, iv: iv()}
+	return &cfb{
+		aesImpl: aesImpl{
+			key: key,
+			iv:  iv(),
+		},
+	}
 }
 
 // ErrDecryptFailed is returned when Decrypt is unable to decrypt due to
@@ -26,8 +31,9 @@ var ErrDecryptFailed = errors.New("decrypt failed")
 
 // Encrypt data. Uses AES-256-CFB encrypter.
 func (c *cfb) Encrypt(data []byte) (string, error) {
-	keyb := sha256.Sum256([]byte(c.key))
-	ciph, err := aes.NewCipher(keyb[:])
+	// keyb := sha256.Sum256([]byte(c.key))
+	// ciph, err := aes.NewCipher(keyb[:])
+	ciph, err := aes.NewCipher([]byte(c.key))
 
 	if err != nil {
 		return "", err
@@ -58,8 +64,9 @@ func (c *cfb) Decrypt(decryptStr string) (string, error) {
 	if len(data) < aes.BlockSize {
 		return "", ErrDecryptFailed
 	}
-	keyb := sha256.Sum256([]byte(c.key))
-	ciph, err := aes.NewCipher(keyb[:])
+	// keyb := sha256.Sum256([]byte(c.key))
+	// ciph, err := aes.NewCipher(keyb[:])
+	ciph, err := aes.NewCipher([]byte(c.key))
 	if err != nil {
 		return "", err
 	}

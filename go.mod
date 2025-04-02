@@ -1,15 +1,17 @@
 module github.com/gtkit/encry
 
-go 1.21
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/stretchr/testify v1.9.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
 	github.com/speps/go-hashids v2.0.0+incompatible
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.36.0
 )
 
 require (

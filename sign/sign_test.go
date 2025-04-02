@@ -7,7 +7,7 @@ import (
 	"github.com/gtkit/encry/sign"
 )
 
-type OrderParams map[string]interface{}
+type OrderParams map[string]any
 
 func TestSortByDic(t *testing.T) {
 	op := make(OrderParams)
