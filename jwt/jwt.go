@@ -17,9 +17,9 @@ type JWT struct {
 
 // CustomClaims 载荷.
 type CustomClaims struct {
-	Subject int64  `json:"sub"`
-	Prv     string `json:"prv"`
-	Role    string `json:"role"`
+	Subject int64  `json:"sub"`  // 用户ID
+	Prv     string `json:"prv"`  // 不同模型的 JWT 进行隔离, 如: user, admin
+	Role    string `json:"role"` // 角色, 如: admin, client
 	// RegisteredClaims 结构体实现了 Claims 接口继承了  Valid() 方法
 	// JWT 规定了7个官方字段，提供使用:
 	// - iss (issuer)：发布者
@@ -99,16 +99,21 @@ func (j *JWT) RefreshToken(tokenString string, duration time.Duration, opt ...jw
 // claims 可选参数.
 type ClaimsOptions func(*CustomClaims)
 
+// WithRole 设置角色.
 func WithRole(role string) ClaimsOptions {
 	return func(claims *CustomClaims) {
 		claims.Role = role
 	}
 }
+
+// WithPrv 设置权限.
 func WithPrv(prv string) ClaimsOptions {
 	return func(claims *CustomClaims) {
 		claims.Prv = prv
 	}
 }
+
+// WithDuration 设置token过期时间.
 func WithDuration(duration time.Duration) ClaimsOptions {
 	return func(claims *CustomClaims) {
 		claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(duration))
@@ -134,12 +139,10 @@ func (j *JWT) GenerateToken(uid int64, options ...ClaimsOptions) (string, error)
 			NotBefore: jwt.NewNumericDate(time.Now()),                // 生效时间
 		},
 	}
-	log.Printf("claims 1: %+v", claims)
 
 	for _, opt := range options {
 		opt(claims)
 	}
-	log.Printf("claims 2: %+v", claims)
 
 	token, err := createToken(*claims, j.SigningKey)
 	if err != nil {
@@ -156,9 +159,21 @@ func createToken(claims CustomClaims, signKey []byte) (string, error) {
 	return res, err
 }
 
-func (c CustomClaims) JwtSubject() int64 {
+func (c CustomClaims) UserId() int64 {
 	return c.Subject
 }
-func (c CustomClaims) JwtRole() string {
-	return c.Role
+
+// VerifyRole 验证角色.
+func (c CustomClaims) VerifyRole(role string) bool {
+	return c.Role == role
+}
+
+// VerifyPrv 验证权限.
+func (c CustomClaims) VerifyPrv(prv string) bool {
+	return c.Prv == prv
+}
+
+// TTL 返回token剩余有效时间.
+func (c CustomClaims) TTL() time.Duration {
+	return c.ExpiresAt.Sub(time.Now())
 }

@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/speps/go-hashids v2.0.0+incompatible
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.37.0
 )
 
 require (
