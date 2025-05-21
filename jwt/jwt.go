@@ -54,6 +54,9 @@ func NewJWT(key string) *JWT {
  * @param  {[type]}    tokenString string [description].
  */
 func (j *JWT) ParseToken(tokenString string, opt ...jwt.ParserOption) (*CustomClaims, error) {
+	if tokenString == "" {
+		return nil, ErrTokenMalformed
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			log.Println("jwt parse error: unexpected signing method")
@@ -70,6 +73,41 @@ func (j *JWT) ParseToken(tokenString string, opt ...jwt.ParserOption) (*CustomCl
 		return claims, nil
 	}
 	return nil, ErrTokenInvalid
+}
+
+// CachedParseToken 缓存解析token.
+var tokenCache = sync.Map{}
+
+func (j *JWT) CachedParseToken(tokenString string) (*CustomClaims, error) {
+	if claims, ok := tokenCache.Load(tokenString); ok {
+		return claims.(*CustomClaims), nil
+	}
+
+	claims, err := j.ParseToken(tokenString)
+	if err == nil {
+		tokenCache.Store(tokenString, claims)
+	}
+	return claims, err
+}
+
+// ParallelVerify 并发解析token.
+func (j *JWT) ParallelVerify(tokens []string) ([]*CustomClaims, []error) {
+	var wg sync.WaitGroup
+	results := make([]*CustomClaims, len(tokens))
+	errs := make([]error, len(tokens))
+
+	for i, token := range tokens {
+		wg.Add(1)
+		go func(idx int, t string) {
+			defer wg.Done()
+			claims, err := j.ParseToken(t)
+			results[idx] = claims
+			errs[idx] = err
+		}(i, token)
+	}
+
+	wg.Wait()
+	return results, errs
 }
 
 // RefreshToken 更新token.
@@ -89,8 +127,11 @@ func (j *JWT) RefreshToken(tokenString string, duration time.Duration, opt ...jw
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
-		claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(duration))
-		return createToken(*claims, j.SigningKey)
+		// 只允许在令牌即将过期时刷新
+		if time.Until(claims.ExpiresAt.Time) < 5*time.Minute {
+			claims.RegisteredClaims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(duration))
+			return createToken(*claims, j.SigningKey)
+		}
 	}
 
 	return "", ErrTokenInvalid
@@ -153,10 +194,7 @@ func (j *JWT) GenerateToken(uid int64, options ...ClaimsOptions) (string, error)
 }
 
 func createToken(claims CustomClaims, signKey []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	res, err := token.SignedString(signKey)
-	log.Println("err:", err)
-	return res, err
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(signKey)
 }
 
 func (c CustomClaims) UserId() int64 {
@@ -176,4 +214,17 @@ func (c CustomClaims) VerifyPrv(prv string) bool {
 // TTL 返回token剩余有效时间.
 func (c CustomClaims) TTL() time.Duration {
 	return c.ExpiresAt.Sub(time.Now())
+}
+
+type Blacklister interface {
+	IsTokenBlacklisted(tokenString string) bool
+	AddTokenToBlacklist(tokenString string)
+}
+
+func (j *JWT) IsTokenBlacklisted(bl Blacklister, tokenString string) bool {
+	return bl.IsTokenBlacklisted(tokenString)
+}
+
+func (j *JWT) AddTokenToBlacklist(bl Blacklister, tokenString string) {
+	bl.AddTokenToBlacklist(tokenString)
 }
