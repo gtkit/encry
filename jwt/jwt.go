@@ -202,13 +202,19 @@ func (c CustomClaims) UserId() int64 {
 }
 
 // VerifyRole 验证角色.
-func (c CustomClaims) VerifyRole(role string) bool {
-	return c.Role == role
+func (c CustomClaims) VerifyRole(role string) error {
+	if c.Role == role {
+		return nil
+	}
+	return ErrTokenRole
 }
 
 // VerifyPrv 验证权限.
-func (c CustomClaims) VerifyPrv(prv string) bool {
-	return c.Prv == prv
+func (c CustomClaims) VerifyPrv(prv string) error {
+	if c.Prv == prv {
+		return nil
+	}
+	return ErrTokenPrv
 }
 
 // TTL 返回token剩余有效时间.
