@@ -10,7 +10,7 @@ import (
 func TestJwtGenerate(t *testing.T) {
 	key := "t8yij6okp2ldadg7feqoibjladj92gjh"
 	j := jwt.NewJWT(key)
-	token, err := j.GenerateToken(10, jwt.WithDuration(time.Hour*24), jwt.WithRole("admin"), jwt.WithPrv("prv1"))
+	token, err := j.GenerateToken(10, jwt.WithExpiresAt(time.Hour*24), jwt.WithRole("admin"), jwt.WithPrv("prv1"))
 	if err != nil {
 		t.Error("generate token error:", err)
 		return

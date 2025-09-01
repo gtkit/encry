@@ -3,6 +3,7 @@ package jwt
 type Err string
 
 var (
+	ErrJWTNotInit                Err = "JWT 未初始化"
 	ErrInvalidKey                Err = "密钥无效"
 	ErrInvalidKeyType            Err = "密钥类型无效"
 	ErrHashUnavailable           Err = "hash 算法不可用"
