@@ -37,13 +37,15 @@ var (
 )
 
 // NewJWT 新建一个jwt实例.
-func NewJWT(key string) *JWT {
+func NewJWT(key string) {
+	if key == "" {
+		return
+	}
 	once.Do(func() {
 		j = &JWT{
 			[]byte(key),
 		}
 	})
-	return j
 }
 
 // ParseToken 解析Toknen.
@@ -118,6 +120,9 @@ func ParallelVerify(tokens []string, opt ...gojwt.ParserOption) ([]*CustomClaims
  * @param  {[type]}      duration    time.Duration [description].
  */
 func RefreshToken(tokenString string, duration time.Duration, opt ...gojwt.ParserOption) (string, error) {
+	if j == nil {
+		return "", ErrJWTNotInit
+	}
 	token, err := gojwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *gojwt.Token) (any, error) {
 		return j.SigningKey, nil
 	}, opt...)
@@ -145,6 +150,9 @@ func RefreshToken(tokenString string, duration time.Duration, opt ...gojwt.Parse
  * @param  {[type]}       duration time.Duration [签名过期时间,默认1小时].
  */
 func GenerateToken(uid uint64, options ...ClaimsOptions) (string, error) {
+	if j == nil {
+		return "", ErrJWTNotInit
+	}
 	claims := &CustomClaims{
 		uid,
 		"",
