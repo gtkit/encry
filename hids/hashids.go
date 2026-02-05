@@ -1,3 +1,4 @@
+//
 package hids
 
 import (
@@ -8,10 +9,10 @@ var _ Hash = (*hash)(nil)
 
 type Hash interface {
 	i()
-
+	
 	// HashidsEncode 加密
 	EncodeHashids(params []int) (string, error)
-
+	
 	// HashidsDecode 解密
 	DecodeHashids(hash string) ([]int, error)
 }
@@ -32,7 +33,7 @@ func (h *hash) EncodeHashids(params []int) (string, error) {
 	hd := hashids.NewData()
 	hd.Salt = h.secret
 	hd.MinLength = h.length
-
+	
 	hashStr, err := hashids.NewWithData(hd)
 	if err != nil {
 		return "", err
@@ -41,7 +42,7 @@ func (h *hash) EncodeHashids(params []int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	
 	return enhashStr, nil
 }
 
@@ -49,9 +50,7 @@ func (h *hash) DecodeHashids(hash string) ([]int, error) {
 	hd := hashids.NewData()
 	hd.Salt = h.secret
 	hd.MinLength = h.length
-
 	ids, err := hashids.NewWithData(hd)
-
 	if err != nil {
 		return nil, err
 	}
