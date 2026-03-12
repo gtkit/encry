@@ -35,7 +35,7 @@ func BytesFNV64a(b []byte) uint64 {
 var elementsMap = make(map[uint32]struct{}) // 用于存储哈希值的map
 func IsDuplicate(element string) bool {
 	hash := StringFNV32a(element) // 获取哈希值
-	
+
 	// 使用map来跟踪已见过的元素
 	if _, exists := elementsMap[hash]; exists {
 		return true
@@ -44,15 +44,19 @@ func IsDuplicate(element string) bool {
 	return false
 }
 
+func CleanMap() {
+	elementsMap = make(map[uint32]struct{}) // 清空哈希值map
+}
+
 func exampleIsDuplicate() {
 	elements := []string{"apple", "banana", "apple", "orange", "banana"}
 	uniqueElements := []string{}
-	
+
 	for _, elem := range elements {
 		if !IsDuplicate(elem) { // 如果不是重复项，则添加到uniqueElements切片中
 			uniqueElements = append(uniqueElements, elem)
 		}
 	}
-	
+
 	// fmt.Println("Unique elements:", uniqueElements) // 输出: [apple banana orange]
 }
