@@ -3,7 +3,9 @@ package sign
 
 import (
 	"bytes"
-	"sort"
+	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,44 +16,70 @@ import (
 // delimiter 分隔符, 每组kv之间的分隔符, 一般为&.
 // connector 连接符, key和value连接, 一般为 = 号.
 func SortByDic(data map[string]any, delimiter string, connector ...string) string {
-	keys := make([]string, 0, len(data))
+	keys := slices.Sorted(maps.Keys(data))
 
-	for k := range data {
-		keys = append(keys, k)
+	connectorStr := ""
+	if len(connector) > 0 {
+		connectorStr = connector[0]
 	}
-	sort.Strings(keys)
 
 	var buf bytes.Buffer
-	// 按照排序后的key遍历map
 	for _, k := range keys {
-		if data[k] == "" {
+		value, ok := stringifyValue(data[k])
+		if !ok || value == "" {
 			continue
 		}
 		buf.WriteString(k)
-		if connector[0] != "" {
-			buf.WriteString(connector[0])
+		if connectorStr != "" {
+			buf.WriteString(connectorStr)
 		}
-		switch vv := data[k].(type) {
-		case string:
-			buf.WriteString(vv)
-		case int:
-			buf.WriteString(strconv.FormatInt(int64(vv), 10))
-		case int8:
-			buf.WriteString(strconv.FormatInt(int64(vv), 10))
-		case int16:
-			buf.WriteString(strconv.FormatInt(int64(vv), 10))
-		case int32:
-			buf.WriteString(strconv.FormatInt(int64(vv), 10))
-		case int64:
-			buf.WriteString(strconv.FormatInt(vv, 10))
-		default:
-			continue
-		}
+		buf.WriteString(value)
 		if delimiter != "" {
 			buf.WriteString(delimiter)
 		}
 	}
-	return strings.TrimRight(buf.String(), delimiter)
+	return strings.TrimSuffix(buf.String(), delimiter)
+}
+
+func stringifyValue(value any) (string, bool) {
+	switch v := value.(type) {
+	case nil:
+		return "", false
+	case string:
+		return v, true
+	case []byte:
+		return string(v), true
+	case int:
+		return strconv.FormatInt(int64(v), 10), true
+	case int8:
+		return strconv.FormatInt(int64(v), 10), true
+	case int16:
+		return strconv.FormatInt(int64(v), 10), true
+	case int32:
+		return strconv.FormatInt(int64(v), 10), true
+	case int64:
+		return strconv.FormatInt(v, 10), true
+	case uint:
+		return strconv.FormatUint(uint64(v), 10), true
+	case uint8:
+		return strconv.FormatUint(uint64(v), 10), true
+	case uint16:
+		return strconv.FormatUint(uint64(v), 10), true
+	case uint32:
+		return strconv.FormatUint(uint64(v), 10), true
+	case uint64:
+		return strconv.FormatUint(v, 10), true
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), true
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true
+	case bool:
+		return strconv.FormatBool(v), true
+	case fmt.Stringer:
+		return v.String(), true
+	default:
+		return "", false
+	}
 }
 
 // MapSign map 排序后字符串参数获取 sign.

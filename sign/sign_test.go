@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gtkit/encry/sign"
+	"github.com/stretchr/testify/require"
 )
 
 type OrderParams map[string]any
@@ -26,4 +27,13 @@ func TestSortByDic(t *testing.T) {
 	op["type"] = "pdd.order.number.list.increment.get"
 
 	t.Log(sign.SortByDic(op, "&", "="))
+}
+
+func TestSortByDicWithoutConnector(t *testing.T) {
+	result := sign.SortByDic(map[string]any{
+		"b": 2,
+		"a": "1",
+	}, "&")
+
+	require.Equal(t, "a1&b2", result)
 }

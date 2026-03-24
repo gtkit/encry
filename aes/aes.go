@@ -3,6 +3,8 @@ package aes
 import (
 	"crypto/aes"
 	"crypto/rand"
+	"errors"
+	"io"
 )
 
 // AES-128:key长度16 字节
@@ -17,14 +19,29 @@ type AES interface {
 }
 
 type aesImpl struct {
-	key string // 秘钥：16, 24, 32字节长度的字符串，用于加密解密
-	iv  []byte // 初始向量：一段固定长度的随机数，用于增强AES加密的强度。IV的长度通常为16字节（即128位），它必须与密钥一起使用
+	key []byte // 秘钥：16, 24, 32字节长度的字符串，用于加密解密
+	iv  []byte // 仅用于兼容旧版 CBC 密文解密，新版密文会自带随机 IV
 }
 
-func iv() []byte {
-	ivdata := make([]byte, aes.BlockSize*2+16)
-	if _, err := rand.Read(ivdata[:aes.BlockSize]); err != nil {
-		return nil
+const cipherFormatVersion byte = 1
+
+var (
+	errInvalidCiphertext = errors.New("invalid ciphertext")
+	errInvalidPadding    = errors.New("invalid PKCS7 padding")
+)
+
+func newAESImpl(key string) aesImpl {
+	legacyIV, _ := newIV()
+	return aesImpl{
+		key: []byte(key),
+		iv:  legacyIV,
 	}
-	return ivdata[:aes.BlockSize]
+}
+
+func newIV() ([]byte, error) {
+	iv := make([]byte, aes.BlockSize)
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+	return iv, nil
 }

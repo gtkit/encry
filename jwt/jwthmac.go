@@ -1,10 +1,8 @@
 package jwt
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -16,23 +14,24 @@ import (
 type JwtHmac struct {
 	secretKey []byte
 	duration
+	cache sync.Map
 }
 
 // NewJwtHmac 新建一个jwt实例.
 func NewJwtHmac(secretKey []byte, options ...Options) (*JwtHmac, error) {
-	if secretKey == nil {
+	if len(secretKey) == 0 {
 		return nil, errors.New("secret key cannot be empty")
 	}
 
 	j := &JwtHmac{
-		secretKey: secretKey,
+		secretKey: append([]byte(nil), secretKey...),
 		duration: duration{
 			tokenDuration:   2 * time.Hour,
 			refreshDuration: time.Hour * 24 * 7, // 默认7天,
 		},
 	}
 	for _, opt := range options {
-		opt(j.duration)
+		opt(&j.duration)
 	}
 
 	return j, nil
@@ -62,7 +61,7 @@ func (j *JwtHmac) GenerateToken(uid int64, options ...claims.Options) (string, e
 			ExpiresAt: gojwt.NewNumericDate(now.Add(j.tokenDuration)), // 签名过期时间，默认1小时
 			NotBefore: gojwt.NewNumericDate(now),                      // 生效时间
 			IssuedAt:  gojwt.NewNumericDate(now),                      // 生成签名的时间 （后续刷新 Token 不会更新）
-			ID:        fmt.Sprintf("%d", now.UnixNano()),              // 防止重放攻击
+			ID:        tokenID,                                        // 防止重放攻击
 		},
 	}
 
@@ -89,27 +88,17 @@ func (j *JwtHmac) RefreshToken(tokenString string, opt ...gojwt.ParserOption) (s
 	if j == nil {
 		return "", ErrJWTNotInit
 	}
-	token, err := gojwt.ParseWithClaims(tokenString, &claims.Claims{}, func(token *gojwt.Token) (any, error) {
-		// 检查签名算法
-		if _, ok := token.Method.(*gojwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return j.secretKey, nil
-	}, opt...)
-
+	tokenClaims, err := j.ParseToken(tokenString, opt...)
 	if err != nil {
 		return "", err
 	}
 
-	if tokenClaims, ok := token.Claims.(*claims.Claims); ok && token.Valid {
-		// 只允许在令牌即将过期时刷新
-		if time.Until(tokenClaims.ExpiresAt.Time) < 5*time.Minute {
-			tokenClaims.RegisteredClaims.ExpiresAt = gojwt.NewNumericDate(time.Now().Add(j.refreshDuration))
-			return createHmacToken(*tokenClaims, j.secretKey)
-		}
+	if err := refreshTokenClaims(tokenClaims, j.tokenDuration, j.refreshDuration); err != nil {
+		return "", err
 	}
 
-	return "", ErrTokenInvalid
+	tokenClaims.RegisteredClaims.ID = tokenClaims.TokenID
+	return createHmacToken(*tokenClaims, j.secretKey)
 }
 
 // ParseToken 解析Toknen.
@@ -127,24 +116,13 @@ func (j *JwtHmac) ParseToken(tokenString string, opt ...gojwt.ParserOption) (*cl
 	}
 	token, err := gojwt.ParseWithClaims(tokenString, &claims.Claims{}, func(token *gojwt.Token) (any, error) {
 		if _, ok := token.Method.(*gojwt.SigningMethodHMAC); !ok {
-			log.Println("jwt parse error: unexpected signing method")
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.secretKey, nil
 	}, opt...)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, gojwt.ErrTokenExpired):
-			return nil, ErrTokenExpired
-		case errors.Is(err, gojwt.ErrTokenMalformed):
-			return nil, ErrTokenMalformed
-		case errors.Is(err, gojwt.ErrTokenNotValidYet):
-			return nil, ErrTokenInvalid
-		default:
-			log.Printf("未知的JWT解析错误: %v", err)
-			return nil, err
-		}
+		return nil, normalizeParseError(err)
 	}
 
 	if c, ok := token.Claims.(*claims.Claims); ok && token.Valid {
@@ -153,18 +131,16 @@ func (j *JwtHmac) ParseToken(tokenString string, opt ...gojwt.ParserOption) (*cl
 	return nil, ErrTokenInvalid
 }
 
-// CachedParseToken 缓存解析token.
-var tokenCache = sync.Map{}
-
 func (j *JwtHmac) CachedParseToken(tokenString string, opt ...gojwt.ParserOption) (*claims.Claims, error) {
+	if j == nil {
+		return nil, ErrJWTNotInit
+	}
 	if tokenString == "" {
 		return nil, ErrTokenMalformed
 	}
 
-	key := base64.URLEncoding.EncodeToString([]byte(tokenString))
-
-	if c, ok := tokenCache.Load(key); ok {
-		return c.(*claims.Claims), nil
+	if c, ok := loadCachedClaims(&j.cache, tokenString); ok {
+		return c, nil
 	}
 
 	tokenClaims, err := j.ParseToken(tokenString, opt...)
@@ -172,8 +148,8 @@ func (j *JwtHmac) CachedParseToken(tokenString string, opt ...gojwt.ParserOption
 		return nil, err
 	}
 
-	_, _ = tokenCache.LoadOrStore(key, tokenClaims)
-	return tokenClaims, err
+	storeCachedClaims(&j.cache, tokenString, tokenClaims)
+	return tokenClaims, nil
 }
 
 // ParallelVerify 并发解析token.
@@ -183,6 +159,7 @@ func (j *JwtHmac) ParallelVerify(tokens []string, opt ...gojwt.ParserOption) ([]
 	errs := make([]error, len(tokens))
 
 	for i, token := range tokens {
+		i, token := i, token
 		wg.Go(func() {
 			tokenClaims, err := j.ParseToken(token, opt...)
 			results[i] = tokenClaims

@@ -3,9 +3,8 @@ package hmac
 import (
 	"crypto/hmac"
 	"crypto/sha1" //nolint:gosec //used
+	"encoding/base64"
 	"encoding/hex"
-
-	"github.com/gtkit/encry/base64"
 )
 
 // Sha1 计算HmacSha1.
@@ -13,7 +12,7 @@ import (
 // data 是加密的内容.
 func Sha1(key, value []byte) []byte {
 	mac := hmac.New(sha1.New, key)
-	mac.Write(value)
+	_, _ = mac.Write(value)
 	return mac.Sum(nil)
 }
 
@@ -24,7 +23,7 @@ func Sha1ToHex(key string, data string) string {
 
 // Sha1ToBase64 将加密后的二进制转Base64字符串.
 func Sha1ToBase64(key string, data string) string {
-	return base64.Encode(Sha1([]byte(key), []byte(data)))
+	return base64.StdEncoding.EncodeToString(Sha1([]byte(key), []byte(data)))
 }
 
 // Sha1Verify 验证HmacSha1.
@@ -32,5 +31,11 @@ func Sha1ToBase64(key string, data string) string {
 // data 是加密的内容.
 // sign 是加密后的字符串.
 func Sha1Verify(key, value, sign string) bool {
-	return hmac.Equal([]byte(sign), Sha1([]byte(key), []byte(value)))
+	expected := Sha1([]byte(key), []byte(value))
+	for _, candidate := range signatureCandidates(sign) {
+		if hmac.Equal(candidate, expected) {
+			return true
+		}
+	}
+	return false
 }

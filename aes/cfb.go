@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"io"
 )
 
 type cfb struct {
@@ -18,10 +19,7 @@ type cfb struct {
 // NewCFB returns a new AES.
 func NewCFB(key string) AES {
 	return &cfb{
-		aesImpl: aesImpl{
-			key: key,
-			iv:  iv(),
-		},
+		aesImpl: newAESImpl(key),
 	}
 }
 
@@ -31,25 +29,20 @@ var ErrDecryptFailed = errors.New("decrypt failed")
 
 // Encrypt data. Uses AES-256-CFB encrypter.
 func (c *cfb) Encrypt(data []byte) (string, error) {
-	// keyb := sha256.Sum256([]byte(c.key))
-	// ciph, err := aes.NewCipher(keyb[:])
-	ciph, err := aes.NewCipher([]byte(c.key))
-
+	ciph, err := aes.NewCipher(c.key)
 	if err != nil {
 		return "", err
 	}
-	// The iv is added to the front of the final payload.
-	encdata := make([]byte, aes.BlockSize*2+len(data))
-	if _, err := rand.Read(encdata[:aes.BlockSize]); err != nil {
+
+	encdata := make([]byte, 1+aes.BlockSize+len(data))
+	encdata[0] = cipherFormatVersion
+	iv := encdata[1 : 1+aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return "", err
 	}
-	// The iv is also added to the front of the encrypted data so we can
-	// verify after decrypting.
-	dataiv := make([]byte, aes.BlockSize+len(data))
-	copy(dataiv, encdata[:aes.BlockSize])
-	copy(dataiv[aes.BlockSize:], data)
-	cipher.NewCFBEncrypter(ciph, encdata[:aes.BlockSize]).
-		XORKeyStream(encdata[aes.BlockSize:], dataiv)
+
+	cipher.NewCFBEncrypter(ciph, iv).
+		XORKeyStream(encdata[1+aes.BlockSize:], data)
 	return base64.URLEncoding.EncodeToString(encdata), nil
 }
 
@@ -61,15 +54,42 @@ func (c *cfb) Decrypt(decryptStr string) (string, error) {
 		return "", err
 	}
 
-	if len(data) < aes.BlockSize {
+	if len(data) > 0 && data[0] == cipherFormatVersion {
+		plainText, err := decryptCurrentCFB(c.key, data)
+		if err == nil {
+			return plainText, nil
+		}
+	}
+
+	return decryptLegacyCFB(c.key, data)
+}
+
+func decryptCurrentCFB(key, data []byte) (string, error) {
+	if len(data) < 1+aes.BlockSize {
 		return "", ErrDecryptFailed
 	}
-	// keyb := sha256.Sum256([]byte(c.key))
-	// ciph, err := aes.NewCipher(keyb[:])
-	ciph, err := aes.NewCipher([]byte(c.key))
+
+	ciph, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
+
+	plainText := make([]byte, len(data)-1-aes.BlockSize)
+	cipher.NewCFBDecrypter(ciph, data[1:1+aes.BlockSize]).
+		XORKeyStream(plainText, data[1+aes.BlockSize:])
+	return string(plainText), nil
+}
+
+func decryptLegacyCFB(key, data []byte) (string, error) {
+	if len(data) < aes.BlockSize {
+		return "", ErrDecryptFailed
+	}
+
+	ciph, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
 	decdata := make([]byte, len(data)-aes.BlockSize)
 	cipher.NewCFBDecrypter(ciph, data[:aes.BlockSize]).
 		XORKeyStream(decdata, data[aes.BlockSize:])

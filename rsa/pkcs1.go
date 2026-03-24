@@ -1,225 +1,221 @@
-// @Author xiaozhaofu 2023/7/15 18:30:00
 package rsa
 
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
+	stdrsa "crypto/rsa"
 	"encoding/base64"
-	"encoding/pem"
-	"log"
-	"os"
-	"runtime"
+	"errors"
+	"fmt"
+	"path/filepath"
 )
 
-const (
-	PKCS1PaddingLength = 11
+const PKCS1PaddingLength = 11
+
+var (
+	ErrCipherTextTooLong = errors.New("ciphertext is larger than one RSA block")
 )
 
-// GenerateRsaKey RSA是算法，ECB是分块模式，PKCS1Padding是填充模式.
-// 整个构成一个完整的加密算法.
-// 生成RSA密钥对.
-// keySize 密钥大小.
-// dirPath 密钥对文件路径.
-// 返回错误.
+// GenerateRsaKey 生成 PKCS#1 PEM 格式 RSA 密钥对文件.
 func GenerateRsaKey(keySize int, dirPath string) error {
-	// ---------------------------- get  privateKey
-	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
+	privatePEM, publicPEM, err := GeneratePKCS1KeyPEM(keySize)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	// x509
-	derText := x509.MarshalPKCS1PrivateKey(privateKey)
-	// pem Block
-	block := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: derText,
-	}
-	// just joint, caller must let dirPath right
-	file, err := os.Create(dirPath + "private.pem")
-	defer func(f *os.File) {
-		if ferr := f.Close(); ferr != nil {
-			_, file, line, _ := runtime.Caller(0)
-			log.Println(Error(file, line+1, ferr.Error()))
-			return
-		}
-	}(file)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	err = pem.Encode(file, block)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
+		return err
 	}
 
-	// -------------------------- get PublicKey from privateKey
-	publicKey := privateKey.PublicKey
-
-	// PKCS#8编码 生成的 publickey
-	derStream, err := x509.MarshalPKIXPublicKey(&publicKey)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
+	if err := writePEMFile(filepath.Join(dirPath, "private.pem"), privatePEM, 0o600); err != nil {
+		return err
 	}
-
-	// PKCS#1编码生成 publickey
-	// derStream := x509.MarshalPKCS1PublicKey(&publicKey)
-
-	block = &pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: derStream,
-	}
-	file, err = os.Create(dirPath + "public.pem")
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	err = pem.Encode(file, block)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	return nil
+	return writePEMFile(filepath.Join(dirPath, "public.pem"), publicPEM, 0o644)
 }
 
-// EncryptBlock 公钥加密-分段.
-// src 待加密的数据.
-// filePath 公钥文件路径.
-func EncryptBlock(src []byte, filePath string) (bytesEncrypt string, err error) {
-	block, berr := GetKey(filePath)
-	if berr != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, berr.Error())
-	}
-
-	pubKey, perr := x509.ParsePKIXPublicKey(block.Bytes)
-	if perr != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, perr.Error())
-	}
-
-	// 该断言表达式会返回 x 的值（也就是 value）和一个布尔值（也就是 ok）
-	pub, ok := pubKey.(*rsa.PublicKey)
-	if !ok {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, "非 rsa.PublicKey 指针类型")
-	}
-
-	keySize, srcSize := pub.Size(), len(src)
-
-	// 单次加密的长度需要减掉padding的长度，PKCS1为11
-	offSet, once := 0, keySize-PKCS1PaddingLength
-	buffer := bytes.Buffer{}
-	for offSet < srcSize {
-		endIndex := offSet + once
-		if endIndex > srcSize {
-			endIndex = srcSize
-		}
-		// 加密一部分
-		bytesOnce, encerr := rsa.EncryptPKCS1v15(rand.Reader, pub, src[offSet:endIndex])
-		if encerr != nil {
-			_, file, line, _ := runtime.Caller(0)
-			return "", Error(file, line+1, encerr.Error())
-		}
-		buffer.Write(bytesOnce)
-		offSet = endIndex
-	}
-	// 由于加密后是字节流，直接输出查看会乱码，因此，为了便于语言直接加解密，这里将加密之后的数据进行base64编码,. 输出加密好并base64编码的串，可用于其他语言解密
-	bytesEncrypt = base64.StdEncoding.EncodeToString(buffer.Bytes())
-	return
-}
-
-// DecryptBlock 私钥解密-分段.
-// src 待解密的数据.
-// filePath 私钥文件路径.
-func DecryptBlock(src []byte, filePath string) (bytesDecrypt []byte, err error) {
-	// block, _ := pem.Decode(privateKeyBytes)
-	// 或者读取文件
-	block, err := GetKey(filePath)
-	if err != nil {
-		log.Println("getkey error:", err)
-	}
-
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return
-	}
-	keySize := privateKey.Size()
-	srcSize := len(src)
-	// log.Println("密钥长度：", keySize, "\t密文长度：\t", srcSize)
-	var offSet = 0
-	var buffer = bytes.Buffer{}
-	for offSet < srcSize {
-		endIndex := offSet + keySize
-		if endIndex > srcSize {
-			endIndex = srcSize
-		}
-		bytesOnce, decerr := rsa.DecryptPKCS1v15(rand.Reader, privateKey, src[offSet:endIndex])
-		if decerr != nil {
-			return nil, decerr
-		}
-		buffer.Write(bytesOnce)
-		offSet = endIndex
-	}
-	bytesDecrypt = buffer.Bytes()
-	return
-}
-
-// Encrypt Rsa公钥加密.
-// plainText 明文.
-// filePath 公钥文件路径.
-// 返回加密后的结果 错误.
+// Encrypt 使用公钥执行单块 PKCS#1 v1.5 加密.
 func Encrypt(plainText []byte, filePath string) ([]byte, error) {
-	// get pem.Block
-	block, err := GetKey(filePath)
+	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
+		return nil, err
 	}
-	// X509
-	publicInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
-	}
-	publicKey, flag := publicInterface.(*rsa.PublicKey)
-	// if flag == false {
-	if !flag {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, "error occur when trans to *rsa.Publickey")
-	}
-	// encrypt
-	cipherText, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
-	}
-	return cipherText, nil
+	return EncryptPKCS1v15(publicKey, plainText)
 }
 
-// Decrypt Rsa私钥解密.
-// cipherText 密文.
-// filePath 私钥文件路径.
-// 返回解密后的结果 错误.
-func Decrypt(cipherText []byte, filePath string) (plainText []byte, err error) {
-	// get pem.Block
-	block, err := GetKey(filePath)
+// EncryptToBase64 使用公钥执行单块 PKCS#1 v1.5 加密并返回 Base64.
+func EncryptToBase64(plainText []byte, filePath string) (string, error) {
+	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
+		return "", err
 	}
-	// get privateKey
-	privateKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+	return EncryptPKCS1v15Base64(publicKey, plainText)
+}
 
-	// get plainText use privateKey
-	plainText, err3 := rsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
-	if err3 != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err3.Error())
+// Decrypt 使用私钥执行单块 PKCS#1 v1.5 解密.
+func Decrypt(cipherText []byte, filePath string) ([]byte, error) {
+	privateKey, err := ReadPrivateKey(filePath)
+	if err != nil {
+		return nil, err
 	}
-	return plainText, err
+	return DecryptPKCS1v15(privateKey, cipherText)
+}
+
+// DecryptBase64 使用私钥执行单块 PKCS#1 v1.5 Base64 解密.
+func DecryptBase64(cipherText, filePath string) ([]byte, error) {
+	privateKey, err := ReadPrivateKey(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPKCS1v15Base64(privateKey, cipherText)
+}
+
+// EncryptBlock 公钥分段加密并返回 Base64，保留兼容旧接口.
+func EncryptBlock(src []byte, filePath string) (string, error) {
+	publicKey, err := ReadPublicKey(filePath)
+	if err != nil {
+		return "", err
+	}
+	return EncryptPKCS1v15ChunkedBase64(publicKey, src)
+}
+
+// EncryptBlockBytes 公钥分段加密并返回原始字节.
+func EncryptBlockBytes(src []byte, filePath string) ([]byte, error) {
+	publicKey, err := ReadPublicKey(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return EncryptPKCS1v15Chunked(publicKey, src)
+}
+
+// DecryptBlock 私钥分段解密原始字节.
+func DecryptBlock(src []byte, filePath string) ([]byte, error) {
+	privateKey, err := ReadPrivateKey(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPKCS1v15Chunked(privateKey, src)
+}
+
+// DecryptBlockBase64 私钥分段解密 Base64 字符串.
+func DecryptBlockBase64(src, filePath string) ([]byte, error) {
+	privateKey, err := ReadPrivateKey(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPKCS1v15ChunkedBase64(privateKey, src)
+}
+
+// EncryptPKCS1v15 使用 RSA 公钥执行单块 PKCS#1 v1.5 加密.
+func EncryptPKCS1v15(publicKey *stdrsa.PublicKey, plainText []byte) ([]byte, error) {
+	if publicKey == nil {
+		return nil, ErrInvalidPublicKey
+	}
+	if len(plainText) > maxPKCS1v15PlaintextSize(publicKey) {
+		return nil, stdrsa.ErrMessageTooLong
+	}
+	return stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+}
+
+// EncryptPKCS1v15Base64 使用 RSA 公钥执行单块 PKCS#1 v1.5 加密并编码为 Base64.
+func EncryptPKCS1v15Base64(publicKey *stdrsa.PublicKey, plainText []byte) (string, error) {
+	cipherText, err := EncryptPKCS1v15(publicKey, plainText)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(cipherText), nil
+}
+
+// DecryptPKCS1v15 使用 RSA 私钥执行单块 PKCS#1 v1.5 解密.
+func DecryptPKCS1v15(privateKey *stdrsa.PrivateKey, cipherText []byte) ([]byte, error) {
+	if privateKey == nil {
+		return nil, ErrInvalidPrivateKey
+	}
+	if len(cipherText) == 0 {
+		return []byte{}, nil
+	}
+	if len(cipherText) != privateKey.Size() {
+		if len(cipherText) > privateKey.Size() {
+			return nil, ErrCipherTextTooLong
+		}
+		return nil, errInvalidCiphertextSize(len(cipherText), privateKey.Size())
+	}
+	return stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
+}
+
+// DecryptPKCS1v15Base64 使用 RSA 私钥执行单块 PKCS#1 v1.5 Base64 解密.
+func DecryptPKCS1v15Base64(privateKey *stdrsa.PrivateKey, cipherText string) ([]byte, error) {
+	raw, err := base64.StdEncoding.DecodeString(cipherText)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPKCS1v15(privateKey, raw)
+}
+
+// EncryptPKCS1v15Chunked 使用 RSA 公钥执行分段 PKCS#1 v1.5 加密.
+func EncryptPKCS1v15Chunked(publicKey *stdrsa.PublicKey, plainText []byte) ([]byte, error) {
+	if publicKey == nil {
+		return nil, ErrInvalidPublicKey
+	}
+	if len(plainText) == 0 {
+		return []byte{}, nil
+	}
+
+	blockSize := maxPKCS1v15PlaintextSize(publicKey)
+	var buffer bytes.Buffer
+	for offset := 0; offset < len(plainText); offset += blockSize {
+		end := min(offset+blockSize, len(plainText))
+		chunk, err := stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText[offset:end])
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(chunk)
+	}
+	return buffer.Bytes(), nil
+}
+
+// EncryptPKCS1v15ChunkedBase64 使用 RSA 公钥执行分段 PKCS#1 v1.5 加密并编码为 Base64.
+func EncryptPKCS1v15ChunkedBase64(publicKey *stdrsa.PublicKey, plainText []byte) (string, error) {
+	cipherText, err := EncryptPKCS1v15Chunked(publicKey, plainText)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(cipherText), nil
+}
+
+// DecryptPKCS1v15Chunked 使用 RSA 私钥执行分段 PKCS#1 v1.5 解密.
+func DecryptPKCS1v15Chunked(privateKey *stdrsa.PrivateKey, cipherText []byte) ([]byte, error) {
+	if privateKey == nil {
+		return nil, ErrInvalidPrivateKey
+	}
+	if len(cipherText) == 0 {
+		return []byte{}, nil
+	}
+
+	keySize := privateKey.Size()
+	if len(cipherText)%keySize != 0 {
+		return nil, errInvalidCiphertextSize(len(cipherText), keySize)
+	}
+
+	var buffer bytes.Buffer
+	for offset := 0; offset < len(cipherText); offset += keySize {
+		chunk, err := stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText[offset:offset+keySize])
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(chunk)
+	}
+	return buffer.Bytes(), nil
+}
+
+// DecryptPKCS1v15ChunkedBase64 使用 RSA 私钥执行分段 PKCS#1 v1.5 Base64 解密.
+func DecryptPKCS1v15ChunkedBase64(privateKey *stdrsa.PrivateKey, cipherText string) ([]byte, error) {
+	raw, err := base64.StdEncoding.DecodeString(cipherText)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPKCS1v15Chunked(privateKey, raw)
+}
+
+func maxPKCS1v15PlaintextSize(publicKey *stdrsa.PublicKey) int {
+	return publicKey.Size() - PKCS1PaddingLength
+}
+
+func errInvalidCiphertextSize(size, keySize int) error {
+	return fmt.Errorf("invalid ciphertext size %d for key size %d", size, keySize)
 }

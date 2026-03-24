@@ -1,142 +1,198 @@
-// @Author xiaozhaofu 2023/7/15 18:38:00
 package rsa
 
 import (
 	"crypto"
-	"crypto/md5" //nolint:gosec //used
+	"crypto/md5" //nolint:gosec //legacy compatibility
 	"crypto/rand"
-	"crypto/rsa"
+	stdrsa "crypto/rsa"
+	"crypto/sha1" //nolint:gosec //legacy compatibility
+	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/x509"
 	"encoding/base64"
-	"log"
-	"runtime"
 )
 
-// Sign Rsa签名.
-// plainText 明文.
-// filePath 私钥文件路径.
-// 返回签名后的数据 错误.
+// Sign 使用 PKCS#1 v1.5 + SHA512 签名，保留兼容旧接口.
 func Sign(plainText []byte, priFilePath string) ([]byte, error) {
-	// get pem.Block
-	block, err := GetKey(priFilePath)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
-	}
-	priKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
-	}
-	// calculate hash value
-	hashText := sha512.Sum512(plainText)
-	// Sign with hashText
-	signText, err := rsa.SignPKCS1v15(rand.Reader, priKey, crypto.SHA512, hashText[:])
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return nil, Error(file, line+1, err.Error())
-	}
-	return signText, nil
+	return SignWithHash(plainText, priFilePath, crypto.SHA512)
 }
 
-// Verify Rsa签名验证.
-// plainText 明文.
-// filePath 公钥文件路径..
-// 返回签名后的数据 错误.
+// Verify 使用 PKCS#1 v1.5 + SHA512 验签，保留兼容旧接口.
 func Verify(plainText []byte, pubFilePath string, signText []byte) error {
-	// get pem.Block
-	block, err := GetKey(pubFilePath)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	// x509
-	pubInter, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	pubKey, ok := pubInter.(*rsa.PublicKey)
-	if !ok {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, "非 rsa.PublicKey 指针类型")
-	}
-	// hashText to verify
-	hashText := sha512.Sum512(plainText)
-	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA512, hashText[:], signText)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
-	}
-	return nil
+	return VerifyWithHash(plainText, pubFilePath, signText, crypto.SHA512)
 }
 
-// SignCS8MD5 计算签名 PKCS8 MD5.
-// plainText 明文, 参数字典排序后的字符串.
-// priKey 私钥.
-func SignCS8MD5(plainText, priFilePath string) (string, error) {
-	block, err := GetKey(priFilePath)
+// SignWithHash 使用指定 hash 执行 PKCS#1 v1.5 签名.
+func SignWithHash(plainText []byte, priFilePath string, hash crypto.Hash) ([]byte, error) {
+	privateKey, err := ReadPrivateKey(priFilePath)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
+		return nil, err
 	}
-
-	hashMd5 := md5.Sum([]byte(plainText)) //nolint:gosec //used
-	hashText := hashMd5[:]
-
-	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return "", Error(file, line+1, err.Error())
-	}
-	pri, ok := privateKey.(*rsa.PrivateKey)
-	if ok {
-		signature, signerr := rsa.SignPKCS1v15(rand.Reader, pri, crypto.MD5, hashText)
-		if signerr != nil {
-			_, file, line, _ := runtime.Caller(0)
-			return "", Error(file, line+1, signerr.Error())
-		}
-		return base64.StdEncoding.EncodeToString(signature), signerr
-	}
-
-	_, file, line, _ := runtime.Caller(0)
-	return "", Error(file, line+1, "private key error")
+	return SignPKCS1v15(privateKey, plainText, hash)
 }
 
-// VerifyMD5 验证签名 PKCS8 MD5.
-// plainText 明文, 参数字典排序后的字符串.
-// sign 签名.
-// pubFilePath 公钥 路径.
+// SignBase64WithHash 使用指定 hash 执行 PKCS#1 v1.5 签名并编码为 Base64.
+func SignBase64WithHash(plainText []byte, priFilePath string, hash crypto.Hash) (string, error) {
+	privateKey, err := ReadPrivateKey(priFilePath)
+	if err != nil {
+		return "", err
+	}
+	return SignPKCS1v15Base64(privateKey, plainText, hash)
+}
+
+// VerifyWithHash 使用指定 hash 执行 PKCS#1 v1.5 验签.
+func VerifyWithHash(plainText []byte, pubFilePath string, signText []byte, hash crypto.Hash) error {
+	publicKey, err := ReadPublicKey(pubFilePath)
+	if err != nil {
+		return err
+	}
+	return VerifyPKCS1v15(publicKey, plainText, signText, hash)
+}
+
+// VerifyBase64WithHash 使用指定 hash 执行 PKCS#1 v1.5 Base64 验签.
+func VerifyBase64WithHash(plainText []byte, pubFilePath, signText string, hash crypto.Hash) error {
+	publicKey, err := ReadPublicKey(pubFilePath)
+	if err != nil {
+		return err
+	}
+	return VerifyPKCS1v15Base64(publicKey, plainText, signText, hash)
+}
+
+// SignPKCS1v15 使用已解析私钥执行 PKCS#1 v1.5 签名.
+func SignPKCS1v15(privateKey *stdrsa.PrivateKey, plainText []byte, hash crypto.Hash) ([]byte, error) {
+	if privateKey == nil {
+		return nil, ErrInvalidPrivateKey
+	}
+	digest, err := hashDigest(plainText, hash)
+	if err != nil {
+		return nil, err
+	}
+	return stdrsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+}
+
+// SignPKCS1v15Base64 使用已解析私钥执行 PKCS#1 v1.5 签名并编码为 Base64.
+func SignPKCS1v15Base64(privateKey *stdrsa.PrivateKey, plainText []byte, hash crypto.Hash) (string, error) {
+	signature, err := SignPKCS1v15(privateKey, plainText, hash)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(signature), nil
+}
+
+// VerifyPKCS1v15 使用已解析公钥执行 PKCS#1 v1.5 验签.
+func VerifyPKCS1v15(publicKey *stdrsa.PublicKey, plainText, signText []byte, hash crypto.Hash) error {
+	if publicKey == nil {
+		return ErrInvalidPublicKey
+	}
+	digest, err := hashDigest(plainText, hash)
+	if err != nil {
+		return err
+	}
+	return stdrsa.VerifyPKCS1v15(publicKey, hash, digest, signText)
+}
+
+// VerifyPKCS1v15Base64 使用已解析公钥执行 PKCS#1 v1.5 Base64 验签.
+func VerifyPKCS1v15Base64(publicKey *stdrsa.PublicKey, plainText []byte, signText string, hash crypto.Hash) error {
+	signature, err := base64.StdEncoding.DecodeString(signText)
+	if err != nil {
+		return err
+	}
+	return VerifyPKCS1v15(publicKey, plainText, signature, hash)
+}
+
+// SignSHA256 使用 PKCS#1 v1.5 + SHA256 签名.
+func SignSHA256(plainText []byte, priFilePath string) ([]byte, error) {
+	return SignWithHash(plainText, priFilePath, crypto.SHA256)
+}
+
+// SignSHA256Base64 使用 PKCS#1 v1.5 + SHA256 签名并返回 Base64.
+func SignSHA256Base64(plainText []byte, priFilePath string) (string, error) {
+	return SignBase64WithHash(plainText, priFilePath, crypto.SHA256)
+}
+
+// VerifySHA256 使用 PKCS#1 v1.5 + SHA256 验签.
+func VerifySHA256(plainText []byte, pubFilePath string, signText []byte) error {
+	return VerifyWithHash(plainText, pubFilePath, signText, crypto.SHA256)
+}
+
+// VerifySHA256Base64 使用 PKCS#1 v1.5 + SHA256 Base64 验签.
+func VerifySHA256Base64(plainText []byte, pubFilePath, signText string) error {
+	return VerifyBase64WithHash(plainText, pubFilePath, signText, crypto.SHA256)
+}
+
+// SignSHA512Base64 使用 PKCS#1 v1.5 + SHA512 签名并返回 Base64.
+func SignSHA512Base64(plainText []byte, priFilePath string) (string, error) {
+	return SignBase64WithHash(plainText, priFilePath, crypto.SHA512)
+}
+
+// VerifySHA512Base64 使用 PKCS#1 v1.5 + SHA512 Base64 验签.
+func VerifySHA512Base64(plainText []byte, pubFilePath, signText string) error {
+	return VerifyBase64WithHash(plainText, pubFilePath, signText, crypto.SHA512)
+}
+
+// SignSHA1 使用 PKCS#1 v1.5 + SHA1 签名，兼容旧协议使用场景.
+func SignSHA1(plainText []byte, priFilePath string) ([]byte, error) {
+	return SignWithHash(plainText, priFilePath, crypto.SHA1)
+}
+
+// VerifySHA1 使用 PKCS#1 v1.5 + SHA1 验签，兼容旧协议使用场景.
+func VerifySHA1(plainText []byte, pubFilePath string, signText []byte) error {
+	return VerifyWithHash(plainText, pubFilePath, signText, crypto.SHA1)
+}
+
+// SignMD5 使用 PKCS#1 v1.5 + MD5 签名，兼容旧协议使用场景.
+func SignMD5(plainText []byte, priFilePath string) ([]byte, error) {
+	return SignWithHash(plainText, priFilePath, crypto.MD5)
+}
+
+// SignMD5Base64 使用 PKCS#1 v1.5 + MD5 签名并返回 Base64.
+func SignMD5Base64(plainText []byte, priFilePath string) (string, error) {
+	return SignBase64WithHash(plainText, priFilePath, crypto.MD5)
+}
+
+// VerifyMD5Bytes 使用 PKCS#1 v1.5 + MD5 验签，兼容旧协议使用场景.
+func VerifyMD5Bytes(plainText []byte, pubFilePath string, signText []byte) error {
+	return VerifyWithHash(plainText, pubFilePath, signText, crypto.MD5)
+}
+
+// VerifyMD5 验证 Base64 编码的 PKCS#1 v1.5 + MD5 签名.
 func VerifyMD5(plainText, sign, pubFilePath string) error {
-	// block, _ := pem.Decode([]byte(pubkey))
-	block, berr := GetKey(pubFilePath)
-	if berr != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, berr.Error())
-	}
-	pubInter, perr := x509.ParsePKIXPublicKey(block.Bytes)
-	if perr != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, perr.Error())
-	}
-	pub, ok := pubInter.(*rsa.PublicKey)
-	if !ok {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, "非 rsa.PublicKey 指针类型")
-	}
+	return VerifyBase64WithHash([]byte(plainText), pubFilePath, sign, crypto.MD5)
+}
 
-	hashMd5 := md5.Sum([]byte(plainText)) //nolint:gosec //used
-	decodedSign, decerr := base64.StdEncoding.DecodeString(sign)
-	if decerr != nil {
-		log.Println("decode sign error: ", decerr)
-		return decerr
-	}
-
-	err := rsa.VerifyPKCS1v15(pub, crypto.MD5, hashMd5[:], decodedSign)
+// SignCS8MD5 保留兼容旧接口: 使用 PKCS#8 私钥执行 PKCS#1 v1.5 + MD5 Base64 签名.
+func SignCS8MD5(plainText, priFilePath string) (string, error) {
+	block, err := readPEMFile(priFilePath)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(0)
-		return Error(file, line+1, err.Error())
+		return "", err
 	}
-	return nil
+	privateKey, err := parsePKCS8PrivateKey(block.Bytes, priFilePath)
+	if err != nil {
+		return "", err
+	}
+	return SignPKCS1v15Base64(privateKey, []byte(plainText), crypto.MD5)
+}
+
+func hashDigest(plainText []byte, hash crypto.Hash) ([]byte, error) {
+	switch hash {
+	case crypto.MD5:
+		sum := md5.Sum(plainText) //nolint:gosec //legacy compatibility
+		return sum[:], nil
+	case crypto.SHA1:
+		sum := sha1.Sum(plainText) //nolint:gosec //legacy compatibility
+		return sum[:], nil
+	case crypto.SHA224:
+		sum := sha256.Sum224(plainText)
+		return sum[:], nil
+	case crypto.SHA256:
+		sum := sha256.Sum256(plainText)
+		return sum[:], nil
+	case crypto.SHA384:
+		sum := sha512.Sum384(plainText)
+		return sum[:], nil
+	case crypto.SHA512:
+		sum := sha512.Sum512(plainText)
+		return sum[:], nil
+	default:
+		return nil, ErrUnsupportedHash
+	}
 }

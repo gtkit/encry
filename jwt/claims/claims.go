@@ -93,10 +93,12 @@ func (c Claims) UserId() int64 {
 
 // VerifyRole 验证角色.
 func (c Claims) VerifyRole(roles ...string) error {
-	if slices.Compare(c.Roles, roles) == 0 {
-		return nil
+	for _, role := range roles {
+		if !slices.Contains(c.Roles, role) {
+			return ErrTokenRole
+		}
 	}
-	return ErrTokenRole
+	return nil
 }
 
 // VerifyPrv 验证模型.
@@ -109,5 +111,8 @@ func (c Claims) VerifyPrv(prv string) error {
 
 // TTL 返回token剩余有效时间.
 func (c Claims) TTL() time.Duration {
+	if c.ExpiresAt == nil {
+		return 0
+	}
 	return c.ExpiresAt.Sub(time.Now())
 }

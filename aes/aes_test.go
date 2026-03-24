@@ -6,58 +6,44 @@ import (
 	"testing"
 
 	"github.com/gtkit/encry/aes"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCBCEncrypt(t *testing.T) {
+	key := "IgkibX71IEf382PT"
+	plaintext := "123456"
 
-	var (
-		key = "IgkibX71IEf382PT" //
+	encryptor := aes.NewCBC(key)
+	decryptor := aes.NewCBC(key)
 
-	)
-	cbc := aes.NewCBC(key)
-	encryptString, err := cbc.Encrypt([]byte("123456"))
-	if err != nil {
-		t.Error("encrypt error", err)
-	}
-	t.Log(encryptString)
+	encryptString, err := encryptor.Encrypt([]byte(plaintext))
+	require.NoError(t, err)
 
-	decryptString, err := cbc.Decrypt(encryptString)
-	if err != nil {
-		t.Error("decrypt error", err)
-	}
-	t.Log(decryptString)
-
+	decryptString, err := decryptor.Decrypt(encryptString)
+	require.NoError(t, err)
+	require.Equal(t, plaintext, decryptString)
 }
 
 func TestCFBEncrypt(t *testing.T) {
+	key := "IgkibX71IEf382P3"
+	plaintext := "123456"
 
-	var (
-		key = "IgkibX71IEf382P3" //
+	encryptor := aes.NewCFB(key)
+	decryptor := aes.NewCFB(key)
 
-	)
-	cfb := aes.NewCFB(key)
-	encryptString, err := cfb.Encrypt([]byte("123456"))
-	if err != nil {
-		t.Error("encrypt error", err)
-	}
-	t.Log(encryptString)
+	encryptString, err := encryptor.Encrypt([]byte(plaintext))
+	require.NoError(t, err)
 
-	decryptString, err := cfb.Decrypt(encryptString)
-	if err != nil {
-		t.Error("decrypt error", err)
-	}
-	t.Log(decryptString)
-
+	decryptString, err := decryptor.Decrypt(encryptString)
+	require.NoError(t, err)
+	require.Equal(t, plaintext, decryptString)
 }
 
 func BenchmarkEncryptAndDecrypt(b *testing.B) {
-	var (
-		key = "IgkibX71IEf382PT" //
-	)
+	key := "IgkibX71IEf382PT"
 
-	b.ResetTimer()
 	aesn := aes.NewCBC(key)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		encryptString, _ := aesn.Encrypt([]byte("123456"))
 		_, _ = aesn.Decrypt(encryptString)
 	}

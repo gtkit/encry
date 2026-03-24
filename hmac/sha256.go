@@ -33,5 +33,11 @@ func Sha256ToBase64(key, data []byte) string {
 // sign 是加密后的字符串.
 // 返回true表示验证成功，false表示验证失败.
 func Sha256Verify(key, value, sign string) bool {
-	return hmac.Equal([]byte(sign), Sha256([]byte(key), []byte(value)))
+	expected := Sha256([]byte(key), []byte(value))
+	for _, candidate := range signatureCandidates(sign) {
+		if hmac.Equal(candidate, expected) {
+			return true
+		}
+	}
+	return false
 }

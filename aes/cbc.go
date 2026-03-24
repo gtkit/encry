@@ -20,10 +20,7 @@ type cbc struct {
 // New 创建一个新的Aes实例
 func NewCBC(key string) AES {
 	return &cbc{
-		aesImpl: aesImpl{
-			key: key,
-			iv:  iv(),
-		},
+		aesImpl: newAESImpl(key),
 	}
 }
 
@@ -33,17 +30,25 @@ func (a *cbc) i() {}
 // 加密模式: CBC
 // 填充方式: PKCS5Padding
 func (a *cbc) Encrypt(encryptBytes []byte) (string, error) {
-	block, err := aes.NewCipher([]byte(a.key)) // NewCipher该函数限制了输入k的长度必须为16, 24或者32
+	block, err := aes.NewCipher(a.key) // NewCipher该函数限制了输入k的长度必须为16, 24或者32
 	if err != nil {
 		return "", err
 	}
 
 	blockSize := block.BlockSize() // 获取秘钥块的长度
-	encryptBytes = pkcs5Padding(encryptBytes, blockSize)
+	encryptBytes = pkcs5Padding(bytes.Clone(encryptBytes), blockSize)
 
-	blockMode := cipher.NewCBCEncrypter(block, []byte(a.iv)) // 加密模式,函数创建CBC加密器
-	encrypted := make([]byte, len(encryptBytes))
-	blockMode.CryptBlocks(encrypted, encryptBytes)
+	iv, err := newIV()
+	if err != nil {
+		return "", err
+	}
+
+	encrypted := make([]byte, 1+aes.BlockSize+len(encryptBytes))
+	encrypted[0] = cipherFormatVersion
+	copy(encrypted[1:], iv)
+
+	blockMode := cipher.NewCBCEncrypter(block, iv) // 加密模式,函数创建CBC加密器
+	blockMode.CryptBlocks(encrypted[1+aes.BlockSize:], encryptBytes)
 	return base64.URLEncoding.EncodeToString(encrypted), nil
 }
 
@@ -56,17 +61,22 @@ func (a *cbc) Decrypt(decryptStr string) (string, error) {
 		return "", err
 	}
 
-	block, err := aes.NewCipher([]byte(a.key)) // NewCipher该函数限制了输入k的长度必须为16, 24或者32,  分组秘钥
+	block, err := aes.NewCipher(a.key) // NewCipher该函数限制了输入k的长度必须为16, 24或者32,  分组秘钥
 	if err != nil {
 		return "", err
 	}
 
-	blockMode := cipher.NewCBCDecrypter(block, []byte(a.iv))
+	if len(decryptBytes) > 0 && decryptBytes[0] == cipherFormatVersion {
+		decrypted, err := decryptWithPrefixedIV(block, decryptBytes)
+		if err == nil {
+			return string(decrypted), nil
+		}
+	}
 
-	decrypted := make([]byte, len(decryptBytes))
-
-	blockMode.CryptBlocks(decrypted, decryptBytes)
-	decrypted = pkcs5UnPadding(decrypted)
+	decrypted, err := decryptLegacy(block, a.iv, decryptBytes)
+	if err != nil {
+		return "", err
+	}
 	return string(decrypted), nil
 }
 
@@ -76,8 +86,45 @@ func pkcs5Padding(cipherText []byte, blockSize int) []byte {
 	return append(cipherText, padText...)
 }
 
-func pkcs5UnPadding(decrypted []byte) []byte {
+func pkcs5UnPadding(decrypted []byte) ([]byte, error) {
 	length := len(decrypted)
+	if length == 0 {
+		return nil, errInvalidPadding
+	}
 	unPadding := int(decrypted[length-1])
-	return decrypted[:(length - unPadding)]
+	if unPadding == 0 || unPadding > length {
+		return nil, errInvalidPadding
+	}
+	for _, b := range decrypted[length-unPadding:] {
+		if int(b) != unPadding {
+			return nil, errInvalidPadding
+		}
+	}
+	return decrypted[:length-unPadding], nil
+}
+
+func decryptWithPrefixedIV(block cipher.Block, data []byte) ([]byte, error) {
+	if len(data) < 1+aes.BlockSize+block.BlockSize() {
+		return nil, errInvalidCiphertext
+	}
+
+	iv := data[1 : 1+aes.BlockSize]
+	cipherText := data[1+aes.BlockSize:]
+	if len(cipherText)%block.BlockSize() != 0 {
+		return nil, errInvalidCiphertext
+	}
+
+	decrypted := make([]byte, len(cipherText))
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(decrypted, cipherText)
+	return pkcs5UnPadding(decrypted)
+}
+
+func decryptLegacy(block cipher.Block, iv, data []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize || len(data) == 0 || len(data)%block.BlockSize() != 0 {
+		return nil, errInvalidCiphertext
+	}
+
+	decrypted := make([]byte, len(data))
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(decrypted, data)
+	return pkcs5UnPadding(decrypted)
 }

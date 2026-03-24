@@ -1,3 +1,3 @@
-package migrate
+package encry
 
 const Version = "v1.1.7"

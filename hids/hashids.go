@@ -1,7 +1,8 @@
-//
 package hids
 
 import (
+	"errors"
+
 	"github.com/speps/go-hashids"
 )
 
@@ -9,10 +10,10 @@ var _ Hash = (*hash)(nil)
 
 type Hash interface {
 	i()
-	
+
 	// HashidsEncode 加密
 	EncodeHashids(params []int) (string, error)
-	
+
 	// HashidsDecode 解密
 	DecodeHashids(hash string) ([]int, error)
 }
@@ -20,45 +21,42 @@ type Hash interface {
 type hash struct {
 	secret string
 	length int
+	ids    *hashids.HashID
+	err    error
 }
 
 func New(secret string, length int) Hash {
+	hd := hashids.NewData()
+	hd.Salt = secret
+	hd.MinLength = length
+	ids, err := hashids.NewWithData(hd)
+
 	return &hash{
 		secret: secret,
 		length: length,
+		ids:    ids,
+		err:    err,
 	}
 }
 
 func (h *hash) EncodeHashids(params []int) (string, error) {
-	hd := hashids.NewData()
-	hd.Salt = h.secret
-	hd.MinLength = h.length
-	
-	hashStr, err := hashids.NewWithData(hd)
-	if err != nil {
-		return "", err
+	if h.err != nil {
+		return "", h.err
 	}
-	enhashStr, err := hashStr.Encode(params)
-	if err != nil {
-		return "", err
+	if h.ids == nil {
+		return "", errors.New("hashids not initialized")
 	}
-	
-	return enhashStr, nil
+	return h.ids.Encode(params)
 }
 
 func (h *hash) DecodeHashids(hash string) ([]int, error) {
-	hd := hashids.NewData()
-	hd.Salt = h.secret
-	hd.MinLength = h.length
-	ids, err := hashids.NewWithData(hd)
-	if err != nil {
-		return nil, err
+	if h.err != nil {
+		return nil, h.err
 	}
-	deids, err := ids.DecodeWithError(hash)
-	if err != nil {
-		return nil, err
+	if h.ids == nil {
+		return nil, errors.New("hashids not initialized")
 	}
-	return deids, nil
+	return h.ids.DecodeWithError(hash)
 }
 
 func (h *hash) i() {}

@@ -2,6 +2,7 @@ package hash
 
 import (
 	"hash/fnv"
+	"sync"
 )
 
 // StringFNV32a returns the FNV-32a hash of a string.
@@ -32,20 +33,29 @@ func BytesFNV64a(b []byte) uint64 {
 	return h.Sum64()
 }
 
-var elementsMap = make(map[uint32]struct{}) // 用于存储哈希值的map
-func IsDuplicate(element string) bool {
-	hash := StringFNV32a(element) // 获取哈希值
+var duplicateTracker = struct {
+	mu       sync.Mutex
+	elements map[string]struct{}
+}{
+	elements: make(map[string]struct{}),
+}
 
-	// 使用map来跟踪已见过的元素
-	if _, exists := elementsMap[hash]; exists {
+func IsDuplicate(element string) bool {
+	duplicateTracker.mu.Lock()
+	defer duplicateTracker.mu.Unlock()
+
+	if _, exists := duplicateTracker.elements[element]; exists {
 		return true
 	}
-	elementsMap[hash] = struct{}{} // 记录哈希值到map中
+	duplicateTracker.elements[element] = struct{}{}
 	return false
 }
 
 func CleanMap() {
-	elementsMap = make(map[uint32]struct{}) // 清空哈希值map
+	duplicateTracker.mu.Lock()
+	defer duplicateTracker.mu.Unlock()
+
+	clear(duplicateTracker.elements)
 }
 
 func exampleIsDuplicate() {

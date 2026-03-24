@@ -2,11 +2,10 @@ package jwt
 
 import (
 	"crypto/ed25519"
-	"encoding/base64"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -20,42 +19,30 @@ type JwtEd25519 struct {
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
 	duration
+	cache sync.Map
 }
 
 // NewJwtEd25519 新建一个jwt实例.
 func NewJwtEd25519(priPath, pubPath string, options ...Options) (*JwtEd25519, error) {
-	// 读取私钥
-	priPEM, err := os.ReadFile(priPath)
+	privateKey, err := readEd25519PrivateKey(priPath)
 	if err != nil {
-		return nil, fmt.Errorf("read private key: %w", err)
+		return nil, err
 	}
-	priBlock, _ := pem.Decode(priPEM)
-	if priBlock == nil || priBlock.Type != "ED25519 PRIVATE KEY" {
-		return nil, errors.New("invalid private key PEM")
-	}
-
-	// 读取公钥
-	pubPEM, err := os.ReadFile(pubPath)
+	publicKey, err := readEd25519PublicKey(pubPath)
 	if err != nil {
-		return nil, fmt.Errorf("read public key: %w", err)
-
-	}
-	pubBlock, _ := pem.Decode(pubPEM)
-	if pubBlock == nil || pubBlock.Type != "ED25519 PUBLIC KEY" {
-		return nil, errors.New("invalid public key PEM")
-
+		return nil, err
 	}
 
 	j := &JwtEd25519{
-		privateKey: priBlock.Bytes,
-		publicKey:  pubBlock.Bytes,
+		privateKey: privateKey,
+		publicKey:  publicKey,
 		duration: duration{
 			tokenDuration:   2 * time.Hour,
 			refreshDuration: time.Hour * 24 * 7, // 默认7天,
 		},
 	}
 	for _, opt := range options {
-		opt(j.duration)
+		opt(&j.duration)
 	}
 
 	return j, nil
@@ -85,7 +72,7 @@ func (j *JwtEd25519) GenerateToken(uid int64, options ...claims.Options) (string
 			ExpiresAt: gojwt.NewNumericDate(now.Add(j.tokenDuration)), // 签名过期时间，默认1小时
 			NotBefore: gojwt.NewNumericDate(now),                      // 生效时间
 			IssuedAt:  gojwt.NewNumericDate(now),                      // 生成签名的时间 （后续刷新 Token 不会更新）
-			ID:        fmt.Sprintf("%d", now.UnixNano()),              // 防止重放攻击
+			ID:        tokenID,                                        // 防止重放攻击
 		},
 	}
 
@@ -112,27 +99,17 @@ func (j *JwtEd25519) RefreshToken(tokenString string, opt ...gojwt.ParserOption)
 	if j == nil {
 		return "", ErrJWTNotInit
 	}
-	token, err := gojwt.ParseWithClaims(tokenString, &claims.Claims{}, func(token *gojwt.Token) (any, error) {
-		// 检查签名算法
-		if _, ok := token.Method.(*gojwt.SigningMethodEd25519); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return j.publicKey, nil
-	}, opt...)
-
+	tokenClaims, err := j.ParseToken(tokenString, opt...)
 	if err != nil {
 		return "", err
 	}
 
-	if tokenClaims, ok := token.Claims.(*claims.Claims); ok && token.Valid {
-		// 只允许在令牌即将过期时刷新
-		if time.Until(tokenClaims.ExpiresAt.Time) < 5*time.Minute {
-			tokenClaims.RegisteredClaims.ExpiresAt = gojwt.NewNumericDate(time.Now().Add(j.refreshDuration))
-			return createEd25519Token(*tokenClaims, j.privateKey)
-		}
+	if err := refreshTokenClaims(tokenClaims, j.tokenDuration, j.refreshDuration); err != nil {
+		return "", err
 	}
 
-	return "", ErrTokenInvalid
+	tokenClaims.RegisteredClaims.ID = tokenClaims.TokenID
+	return createEd25519Token(*tokenClaims, j.privateKey)
 }
 
 // ParseToken 解析Toknen.
@@ -150,24 +127,13 @@ func (j *JwtEd25519) ParseToken(tokenString string, opt ...gojwt.ParserOption) (
 	}
 	token, err := gojwt.ParseWithClaims(tokenString, &claims.Claims{}, func(token *gojwt.Token) (any, error) {
 		if _, ok := token.Method.(*gojwt.SigningMethodEd25519); !ok {
-			log.Println("jwt parse error: unexpected signing method")
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.publicKey, nil
 	}, opt...)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, gojwt.ErrTokenExpired):
-			return nil, ErrTokenExpired
-		case errors.Is(err, gojwt.ErrTokenMalformed):
-			return nil, ErrTokenMalformed
-		case errors.Is(err, gojwt.ErrTokenNotValidYet):
-			return nil, ErrTokenInvalid
-		default:
-			log.Printf("未知的JWT解析错误: %v", err)
-			return nil, err
-		}
+		return nil, normalizeParseError(err)
 	}
 
 	if c, ok := token.Claims.(*claims.Claims); ok && token.Valid {
@@ -176,18 +142,16 @@ func (j *JwtEd25519) ParseToken(tokenString string, opt ...gojwt.ParserOption) (
 	return nil, ErrTokenInvalid
 }
 
-// CachedParseToken 缓存解析token.
-var tokened25519Cache = sync.Map{}
-
 func (j *JwtEd25519) CachedParseToken(tokenString string, opt ...gojwt.ParserOption) (*claims.Claims, error) {
+	if j == nil {
+		return nil, ErrJWTNotInit
+	}
 	if tokenString == "" {
 		return nil, ErrTokenMalformed
 	}
 
-	key := base64.URLEncoding.EncodeToString([]byte(tokenString))
-
-	if c, ok := tokened25519Cache.Load(key); ok {
-		return c.(*claims.Claims), nil
+	if c, ok := loadCachedClaims(&j.cache, tokenString); ok {
+		return c, nil
 	}
 
 	tokenClaims, err := j.ParseToken(tokenString, opt...)
@@ -195,8 +159,8 @@ func (j *JwtEd25519) CachedParseToken(tokenString string, opt ...gojwt.ParserOpt
 		return nil, err
 	}
 
-	_, _ = tokened25519Cache.LoadOrStore(key, tokenClaims)
-	return tokenClaims, err
+	storeCachedClaims(&j.cache, tokenString, tokenClaims)
+	return tokenClaims, nil
 }
 
 // ParallelVerify 并发解析token.
@@ -219,4 +183,71 @@ func (j *JwtEd25519) ParallelVerify(tokens []string, opt ...gojwt.ParserOption) 
 
 func createEd25519Token(claims claims.Claims, signKey any) (string, error) {
 	return gojwt.NewWithClaims(gojwt.SigningMethodEdDSA, claims).SignedString(signKey)
+}
+
+func readEd25519PrivateKey(path string) (ed25519.PrivateKey, error) {
+	block, err := readPEMBlock(path)
+	if err != nil {
+		return nil, err
+	}
+
+	switch block.Type {
+	case "ED25519 PRIVATE KEY":
+		if len(block.Bytes) != ed25519.PrivateKeySize {
+			return nil, errors.New("invalid Ed25519 private key size")
+		}
+		return ed25519.PrivateKey(append([]byte(nil), block.Bytes...)), nil
+	case "PRIVATE KEY":
+		privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse private key: %w", err)
+		}
+		key, ok := privateKey.(ed25519.PrivateKey)
+		if !ok {
+			return nil, errors.New("invalid private key type")
+		}
+		return append(ed25519.PrivateKey(nil), key...), nil
+	default:
+		return nil, fmt.Errorf("invalid private key PEM type: %s", block.Type)
+	}
+}
+
+func readEd25519PublicKey(path string) (ed25519.PublicKey, error) {
+	block, err := readPEMBlock(path)
+	if err != nil {
+		return nil, err
+	}
+
+	switch block.Type {
+	case "ED25519 PUBLIC KEY":
+		if len(block.Bytes) != ed25519.PublicKeySize {
+			return nil, errors.New("invalid Ed25519 public key size")
+		}
+		return ed25519.PublicKey(append([]byte(nil), block.Bytes...)), nil
+	case "PUBLIC KEY":
+		publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse public key: %w", err)
+		}
+		key, ok := publicKey.(ed25519.PublicKey)
+		if !ok {
+			return nil, errors.New("invalid public key type")
+		}
+		return append(ed25519.PublicKey(nil), key...), nil
+	default:
+		return nil, fmt.Errorf("invalid public key PEM type: %s", block.Type)
+	}
+}
+
+func readPEMBlock(path string) (*pem.Block, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("decode PEM %s: %w", path, ErrInvalidKey)
+	}
+	return block, nil
 }

@@ -67,13 +67,19 @@ func Argon2VerifyPassword(password, hash string) bool {
 	if len(parts) != 6 {
 		return false
 	}
+	if parts[1] != "argon2id" {
+		return false
+	}
 
 	// 提取参数
-	// var version int
+	var version int
 	var memory uint32
 	var time uint32
 	var threads uint8
 
+	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil || version != argon2.Version {
+		return false
+	}
 	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &time, &threads)
 	if err != nil {
 		return false
@@ -107,14 +113,18 @@ func Argon2VerifyPassword(password, hash string) bool {
 func GenerateRandomPassword(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
 
-	password := make([]byte, length)
-	for i := range password {
-		randomByte := make([]byte, 1)
-		if _, err := rand.Read(randomByte); err != nil {
-			return "", err
-		}
+	if length <= 0 {
+		return "", nil
+	}
 
-		password[i] = charset[randomByte[0]%byte(len(charset))]
+	randomBytes := make([]byte, length)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", err
+	}
+
+	password := make([]byte, length)
+	for i, randomByte := range randomBytes {
+		password[i] = charset[int(randomByte)%len(charset)]
 	}
 
 	return string(password), nil
