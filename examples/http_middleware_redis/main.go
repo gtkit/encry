@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,13 +18,34 @@ import (
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/middleware"
 	"github.com/gtkit/encry/internal/signer"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	redisAddr := os.Getenv("ENCRY_REDIS_ADDR")
+	if redisAddr == "" {
+		fmt.Println("set ENCRY_REDIS_ADDR to run Redis-backed nonce store demo")
+		return
+	}
+
+	client := redis.NewClient(&redis.Options{
+		Addr:         redisAddr,
+		DialTimeout:  2 * time.Second,
+		ReadTimeout:  2 * time.Second,
+		WriteTimeout: 2 * time.Second,
+	})
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		log.Fatal(err)
+	}
+
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
-		"ENCRY_HTTP_ED25519_KEY_DIR",
-		"ENCRY_HTTP_ED25519_ACTIVE_KID",
-		"encry-http-middleware-*",
+		"ENCRY_HTTP_REDIS_ED25519_KEY_DIR",
+		"ENCRY_HTTP_REDIS_ED25519_ACTIVE_KID",
+		"encry-http-redis-*",
 		filepath.Join("keys", "ed25519"),
 		"2026-03",
 	)
@@ -45,48 +67,35 @@ func main() {
 		log.Fatal(err)
 	}
 	service := signer.NewManagedEd25519(ring)
-	nonceStore := httpsig.NewMemoryNonceStore()
-	verifyOpts := httpsig.VerifyOptions{
-		MaxSkew: 5 * time.Minute,
-		Nonces:  nonceStore,
-	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /callbacks/order-paid", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("accepted"))
 	})
 
-	handler := middleware.HTTPVerifyRequestMiddleware(service, verifyOpts)(mux)
+	handler := middleware.HTTPVerifyRequestMiddleware(service, httpsig.VerifyOptions{
+		MaxSkew: 5 * time.Minute,
+		Nonces:  httpsig.NewRedisNonceStore(client, "encry:httpsig:nonce", 2*time.Second),
+	})(mux)
 
-	validBody := []byte(`{"order_id":"1001","status":"paid"}`)
-	validHeaders, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", validBody, time.Now(), "nonce-1001")
+	body := []byte(`{"order_id":"1001","status":"paid"}`)
+	headers, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", body, time.Now(), "nonce-redis-1")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	validReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(validBody))
-	validHeaders.Apply(validReq.Header)
-	validResp := httptest.NewRecorder()
-	handler.ServeHTTP(validResp, validReq)
+	req := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(body))
+	headers.Apply(req.Header)
+	resp := httptest.NewRecorder()
+	handler.ServeHTTP(resp, req)
 
-	replayReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(validBody))
-	validHeaders.Apply(replayReq.Header)
+	replayReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(body))
+	headers.Apply(replayReq.Header)
 	replayResp := httptest.NewRecorder()
 	handler.ServeHTTP(replayResp, replayReq)
 
-	expiredHeaders, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", validBody, time.Now().Add(-10*time.Minute), "nonce-1002")
-	if err != nil {
-		log.Fatal(err)
-	}
-	expiredReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(validBody))
-	expiredHeaders.Apply(expiredReq.Header)
-	expiredResp := httptest.NewRecorder()
-	handler.ServeHTTP(expiredResp, expiredReq)
-
-	fmt.Println("valid status:", validResp.Code)
-	fmt.Println("valid body:", validResp.Body.String())
+	fmt.Println("valid status:", resp.Code)
 	fmt.Println("replay status:", replayResp.Code)
-	fmt.Println("expired status:", expiredResp.Code)
 }
 
 func ensureEdKeys(root, kid string, status keyring.KeyStatus) error {

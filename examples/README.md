@@ -15,7 +15,9 @@ go run ./examples/ed25519
 go run ./examples/ed25519_files
 go run ./examples/jwks_publish
 go run ./examples/http_middleware
+go run ./examples/http_middleware_redis
 go run ./examples/gin_middleware
+go run ./examples/jwt_jwks_rotation
 go run ./examples/service_aes_gcm
 go run ./examples/service_ed25519_rotation
 go run ./examples/service_rsa_pss_rotation
@@ -34,8 +36,10 @@ go run ./examples/service_rsa_pss_rotation
 - `ed25519`：最小 `Ed25519` 签名验签示例
 - `ed25519_files`：演示 PEM 文件落盘和业务目录约定
 - `jwks_publish`：演示 metadata、生命周期状态和公钥发布
-- `http_middleware`：演示 `net/http` 验签中间件
-- `gin_middleware`：演示 `Gin` 验签中间件
+- `http_middleware`：演示 `net/http` 规范化请求签名中间件
+- `http_middleware_redis`：演示 `Redis` 防重放 nonce store
+- `gin_middleware`：演示 `Gin` 规范化请求签名中间件
+- `jwt_jwks_rotation`：演示 `JWT kid` 签发、轮换和 `JWKS-like` 发布
 - `service_aes_gcm`：服务端 `config + key path + kid rotate + AAD`
 - `service_ed25519_rotation`：服务端 `config + key path + kid rotate + verify old signatures`
 - `service_rsa_pss_rotation`：服务端 `config + key path + kid rotate + PSS options`
@@ -48,3 +52,19 @@ go run ./examples/service_rsa_pss_rotation
 - `internal/sealer`：封装 `AES-GCM` 的 `kid` 路由
 - `internal/signer`：封装 `Ed25519` 与 `RSA-PSS` 的签名验签服务
 - `internal/middleware`：封装 `net/http` 与 `Gin` 验签中间件
+- `internal/jwtauth`：封装基于 `kid` 的 `JWT` 签发与验签
+
+规范化请求签名默认使用这些头：
+
+- `X-Signature`
+- `X-Signature-Timestamp`
+- `X-Signature-Nonce`
+
+规范化签名串由以下字段按换行拼接：
+
+- `METHOD`
+- `PATH`
+- `RAW_QUERY`
+- `TIMESTAMP`
+- `NONCE`
+- `SHA256(body)`

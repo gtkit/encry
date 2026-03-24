@@ -189,7 +189,9 @@ go run ./examples/ed25519
 go run ./examples/ed25519_files
 go run ./examples/jwks_publish
 go run ./examples/http_middleware
+go run ./examples/http_middleware_redis
 go run ./examples/gin_middleware
+go run ./examples/jwt_jwks_rotation
 go run ./examples/service_aes_gcm
 go run ./examples/service_ed25519_rotation
 go run ./examples/service_rsa_pss_rotation
@@ -209,10 +211,48 @@ go run ./examples/service_rsa_pss_rotation
   负责基于 `kid` 的 `AES-GCM` 加解密服务
 - `internal/signer`
   负责基于 `kid` 的 `Ed25519`、`RSA-PSS` 签名验签服务
+- `internal/httpsig`
+  负责 `method + path + query + body digest + timestamp + nonce` 的规范化请求签名
 - `internal/middleware`
-  负责 `net/http` 和 `Gin` 的签名校验中间件
+  负责 `net/http` 和 `Gin` 的签名校验中间件与防重放接入
+- `internal/jwtauth`
+  负责基于 `kid` 的 `Ed25519`、`RSA-PSS` JWT 签发、验签和 `JWKS-like` 公钥发布
 
 这几个包已经被 `examples/service_*` 模板直接复用。
+
+## 请求签名协议
+
+仓库里现在已经有一套更适合 webhook / callback / service-to-service 场景的规范化请求签名协议：
+
+- 头字段：
+  `X-Signature`
+  `X-Signature-Timestamp`
+  `X-Signature-Nonce`
+- canonical string：
+  `METHOD`
+  `PATH`
+  `RAW_QUERY`
+  `TIMESTAMP`
+  `NONCE`
+  `SHA256(body)`
+
+对应实现见：
+
+- `internal/httpsig`
+- `internal/middleware`
+- `examples/http_middleware`
+- `examples/gin_middleware`
+
+如果要把防重放扩展到多实例部署，仓库里现在也有：
+
+- `internal/httpsig.RedisNonceStore`
+- `internal/httpsig.RedisLuaNonceStore`
+- `examples/http_middleware_redis`
+
+如果要把 token 签发和公钥发布接到同一套 key ring 上，仓库里现在也有：
+
+- `internal/jwtauth`
+- `examples/jwt_jwks_rotation`
 
 ## 验证
 
