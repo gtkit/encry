@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 
@@ -12,8 +13,12 @@ import (
 func HTTPVerifyRequestMiddleware(verifier httpsig.Verifier, opts httpsig.VerifyOptions) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, err := io.ReadAll(r.Body)
+			body, err := readRequestBody(r.Body, opts.MaxBodyBytes)
 			if err != nil {
+				if errors.Is(err, errRequestBodyTooLarge) {
+					http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+					return
+				}
 				http.Error(w, "read request body failed", http.StatusBadRequest)
 				return
 			}

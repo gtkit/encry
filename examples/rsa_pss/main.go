@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,14 +9,24 @@ import (
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	dir, err := os.MkdirTemp("", "encry-rsa-pss-*")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(dir)
 
 	if err := rsa.GenerateRsaKey(2048, dir); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	publicKeyPath := filepath.Join(dir, "public.pem")
@@ -25,13 +34,14 @@ func main() {
 
 	signature, err := rsa.SignPSSBase64([]byte("hello-pss"), privateKeyPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if err := rsa.VerifyPSSBase64([]byte("hello-pss"), publicKeyPath, signature); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("signature:", signature)
-	fmt.Println("verify:", true)
+	out.Println("signature:", signature)
+	out.Println("verify:", true)
+	return nil
 }

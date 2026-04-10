@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -31,7 +32,7 @@ func Argon2HashPassword(password string) (string, error) {
 	// 生成随机盐
 	salt := make([]byte, pm.saltLength)
 	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("生成盐失败: %v", err)
+		return "", fmt.Errorf("生成盐失败: %w", err)
 	}
 
 	// 使用Argon2生成哈希
@@ -60,7 +61,7 @@ func Argon2HashPassword(password string) (string, error) {
 
 // Argon2VerifyPassword 验证密码.
 // password 明文密码
-// hash 哈希字符串
+// hash 哈希字符串.
 func Argon2VerifyPassword(password, hash string) bool {
 	// 解析哈希字符串
 	parts := strings.Split(hash, "$")
@@ -95,6 +96,11 @@ func Argon2VerifyPassword(password, hash string) bool {
 		return false
 	}
 
+	hashLen, ok := hashByteLen(int64(len(expectedHash)))
+	if !ok {
+		return false
+	}
+
 	// 使用相同参数计算哈希
 	computedHash := argon2.IDKey(
 		[]byte(password),
@@ -102,11 +108,18 @@ func Argon2VerifyPassword(password, hash string) bool {
 		time,
 		memory,
 		threads,
-		uint32(len(expectedHash)),
+		hashLen,
 	)
 
 	// 安全比较哈希值
 	return subtle.ConstantTimeCompare(computedHash, expectedHash) == 1
+}
+
+func hashByteLen(n int64) (uint32, bool) {
+	if n < 0 || n > math.MaxUint32 {
+		return 0, false
+	}
+	return uint32(n), true
 }
 
 // GenerateRandomPassword 生成随机密码.

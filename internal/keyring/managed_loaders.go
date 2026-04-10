@@ -1,13 +1,13 @@
 package keyring
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gtkit/encry/ed"
 	encryrsa "github.com/gtkit/encry/rsa"
+	json "github.com/gtkit/json"
 )
 
 // LoadStringKeyRecords 加载带 sidecar metadata 的字符串密钥文件.
@@ -23,7 +23,7 @@ func LoadStringKeyRecords(dir, suffix, algorithm, use string) (map[string]Record
 			continue
 		}
 		kid := strings.TrimSuffix(entry.Name(), suffix)
-		raw, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		raw, err := os.ReadFile(filepath.Join(dir, entry.Name())) // #nosec G304 -- file name comes from os.ReadDir enumeration under the supplied directory.
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func LoadRSAKeyPairRecords(dir string) (map[string]Record[RSAKeyPair], error) {
 }
 
 func loadMetadata(path, kid, algorithm, use string) (Metadata, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- metadata path is intentionally constructed by the managed loader.
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Metadata{}.Normalize(kid, algorithm, use), nil

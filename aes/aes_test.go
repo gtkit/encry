@@ -2,7 +2,6 @@ package aes_test
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"testing"
 
 	"github.com/gtkit/encry/aes"
@@ -53,5 +52,5 @@ func TestSha256(t *testing.T) {
 	key := "IgkibX71IEf382PT" //
 	keyb := sha256.Sum256([]byte(key))
 	t.Log("key:", key, " len:", len(key))
-	fmt.Println("keyb:", string(keyb[:]), " len:", len(string(keyb[:])))
+	t.Log("keyb:", string(keyb[:]), " len:", len(string(keyb[:])))
 }

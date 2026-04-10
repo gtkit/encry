@@ -1,7 +1,7 @@
 package ed_test
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -9,6 +9,7 @@ import (
 )
 
 func ExampleGenerateKeyPair() {
+	out := log.New(os.Stdout, "", 0)
 	publicKey, privateKey, err := ed.GenerateKeyPair()
 	if err != nil {
 		panic(err)
@@ -19,12 +20,13 @@ func ExampleGenerateKeyPair() {
 		panic(err)
 	}
 
-	fmt.Println(ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
+	out.Println(ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
 	// Output:
 	// true
 }
 
 func ExampleWriteKeyPair() {
+	out := log.New(os.Stdout, "", 0)
 	dir, err := os.MkdirTemp("", "encry-ed25519-*")
 	if err != nil {
 		panic(err)
@@ -46,7 +48,7 @@ func ExampleWriteKeyPair() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(ok)
+	out.Println(ok)
 	// Output:
 	// true
 }

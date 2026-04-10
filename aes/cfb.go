@@ -41,6 +41,7 @@ func (c *cfb) Encrypt(data []byte) (string, error) {
 		return "", err
 	}
 
+	// #nosec G407 -- iv is filled from crypto/rand above before use.
 	cipher.NewCFBEncrypter(ciph, iv).
 		XORKeyStream(encdata[1+aes.BlockSize:], data)
 	return base64.URLEncoding.EncodeToString(encdata), nil
@@ -100,8 +101,4 @@ func decryptLegacyCFB(key, data []byte) (string, error) {
 		return "", ErrDecryptFailed
 	}
 	return string(decdata[aes.BlockSize:]), nil
-}
-
-func (c *cfb) i() {
-
 }

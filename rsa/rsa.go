@@ -111,7 +111,7 @@ func MarshalPKIXPublicKeyPEM(publicKey *stdrsa.PublicKey) ([]byte, error) {
 }
 
 func readPEMFile(filePath string) (*pem.Block, error) {
-	buf, err := os.ReadFile(filePath)
+	buf, err := os.ReadFile(filePath) // #nosec G304 -- this helper intentionally reads a caller-provided key path.
 	if err != nil {
 		return nil, fmt.Errorf("read key %s: %w", filePath, err)
 	}

@@ -94,7 +94,7 @@ func (s *RedisLuaNonceStore) Use(key string, expiresAt time.Time) (bool, error) 
 // Cleanup 清理 zset 中已过期的索引项.
 func (s *RedisLuaNonceStore) Cleanup(ctx context.Context, before time.Time) error {
 	if remover, ok := s.client.(interface {
-		ZRemRangeByScore(ctx context.Context, key, min, max string) *redis.IntCmd
+		ZRemRangeByScore(ctx context.Context, key, minScore, maxScore string) *redis.IntCmd
 	}); ok {
 		return remover.ZRemRangeByScore(ctx, s.indexKey, "-inf", fmt.Sprintf("%d", before.UnixMilli())).Err()
 	}

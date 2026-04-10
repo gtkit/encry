@@ -1,3 +1,6 @@
 .idea/
 .Ds_Store
-.idea
+CLAUDE.md
+AGENTS.md
+.harness/
+docs/

@@ -24,8 +24,6 @@ func NewCBC(key string) AES {
 	}
 }
 
-func (a *cbc) i() {}
-
 // Encrypt 加密
 // 加密模式: CBC
 // 填充方式: PKCS5Padding
@@ -82,6 +80,7 @@ func (a *cbc) Decrypt(decryptStr string) (string, error) {
 
 func pkcs5Padding(cipherText []byte, blockSize int) []byte {
 	padding := blockSize - len(cipherText)%blockSize
+	// #nosec G115 -- AES block size is 16, so PKCS#5 padding always fits in one byte.
 	padText := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(cipherText, padText...)
 }

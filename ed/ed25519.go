@@ -106,7 +106,7 @@ func MarshalPublicKeyPEM(publicKey ed25519.PublicKey) ([]byte, error) {
 
 // ReadPrivateKey 从 PEM 文件读取 Ed25519 私钥.
 func ReadPrivateKey(path string) (ed25519.PrivateKey, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- this helper intentionally reads a caller-provided key path.
 	if err != nil {
 		return nil, fmt.Errorf("read private key %s: %w", path, err)
 	}
@@ -115,7 +115,7 @@ func ReadPrivateKey(path string) (ed25519.PrivateKey, error) {
 
 // ReadPublicKey 从 PEM 文件读取 Ed25519 公钥.
 func ReadPublicKey(path string) (ed25519.PublicKey, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- this helper intentionally reads a caller-provided key path.
 	if err != nil {
 		return nil, fmt.Errorf("read public key %s: %w", path, err)
 	}

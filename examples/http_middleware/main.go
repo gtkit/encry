@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -12,14 +10,25 @@ import (
 	"time"
 
 	"github.com/gtkit/encry/ed"
-	"github.com/gtkit/encry/internal/cryptoenv"
+	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/httpsig"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/middleware"
 	"github.com/gtkit/encry/internal/signer"
+	json "github.com/gtkit/json"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
 		"ENCRY_HTTP_ED25519_KEY_DIR",
 		"ENCRY_HTTP_ED25519_ACTIVE_KID",
@@ -28,31 +37,32 @@ func main() {
 		"2026-03",
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer cleanup()
 
 	if err := ensureEdKeys(cfg.KeyDir, "2026-03", keyring.StatusActive); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.Ed25519KeyPair]]()
 	records, err := keyring.LoadEd25519KeyPairRecords(cfg.KeyDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := ring.Store(cfg.ActiveKID, records); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	service := signer.NewManagedEd25519(ring)
 	nonceStore := httpsig.NewMemoryNonceStore()
 	verifyOpts := httpsig.VerifyOptions{
-		MaxSkew: 5 * time.Minute,
-		Nonces:  nonceStore,
+		MaxSkew:      5 * time.Minute,
+		Nonces:       nonceStore,
+		MaxBodyBytes: 1 << 20,
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /callbacks/order-paid", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /callbacks/order-paid", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("accepted"))
 	})
 
@@ -61,7 +71,7 @@ func main() {
 	validBody := []byte(`{"order_id":"1001","status":"paid"}`)
 	validHeaders, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", validBody, time.Now(), "nonce-1001")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	validReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(validBody))
@@ -76,17 +86,18 @@ func main() {
 
 	expiredHeaders, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", validBody, time.Now().Add(-10*time.Minute), "nonce-1002")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	expiredReq := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(validBody))
 	expiredHeaders.Apply(expiredReq.Header)
 	expiredResp := httptest.NewRecorder()
 	handler.ServeHTTP(expiredResp, expiredReq)
 
-	fmt.Println("valid status:", validResp.Code)
-	fmt.Println("valid body:", validResp.Body.String())
-	fmt.Println("replay status:", replayResp.Code)
-	fmt.Println("expired status:", expiredResp.Code)
+	out.Println("valid status:", validResp.Code)
+	out.Println("valid body:", validResp.Body.String())
+	out.Println("replay status:", replayResp.Code)
+	out.Println("expired status:", expiredResp.Code)
+	return nil
 }
 
 func ensureEdKeys(root, kid string, status keyring.KeyStatus) error {

@@ -2,13 +2,15 @@ module github.com/gtkit/encry
 
 go 1.26
 
+toolchain go1.26.2
+
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
+	github.com/gtkit/json v0.2.10
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/speps/go-hashids v2.0.0+incompatible
 	golang.org/x/crypto v0.49.0
@@ -43,14 +45,10 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.25.0 // indirect
-	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

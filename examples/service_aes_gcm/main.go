@@ -3,19 +3,28 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/gtkit/encry/internal/cryptoenv"
+	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/sealer"
+	json "github.com/gtkit/json"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
 		"ENCRY_AES_KEY_DIR",
 		"ENCRY_AES_ACTIVE_KID",
@@ -24,60 +33,60 @@ func main() {
 		"2026-03",
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer cleanup()
 
 	if err := ensureAESDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ring := keyring.New[keyring.Record[string]]()
 	if err := reloadAESKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	service := sealer.NewManagedAESGCM(ring)
 
 	aad := []byte("tenant=acme;scene=checkout")
 	tokenV1, err := service.Encrypt([]byte(`{"order_id":"1001","status":"paid"}`), aad)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if err := writeAESMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := reloadAESKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	tokenV2, err := service.Encrypt([]byte(`{"order_id":"1002","status":"paid"}`), aad)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	plainV1, err := service.Decrypt(tokenV1, aad)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	plainV2, err := service.Decrypt(tokenV2, aad)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	_, wrongAADErr := service.Decrypt(tokenV2, []byte("tenant=acme;scene=refund"))
 
 	snapshot, err := ring.Current()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("key dir:", cfg.KeyDir)
-	fmt.Println("active kid:", snapshot.ActiveKID)
-	fmt.Println("token v1:", tokenV1)
-	fmt.Println("token v2:", tokenV2)
-	fmt.Println("plain v1:", string(plainV1))
-	fmt.Println("plain v2:", string(plainV2))
-	fmt.Println("wrong aad rejected:", wrongAADErr != nil)
+	out.Println("active kid:", snapshot.ActiveKID)
+	out.Println("token v1 generated:", tokenV1 != "")
+	out.Println("token v2 generated:", tokenV2 != "")
+	out.Println("decrypt v1 ok:", len(plainV1) > 0)
+	out.Println("decrypt v2 ok:", len(plainV2) > 0)
+	out.Println("wrong aad rejected:", wrongAADErr != nil)
+	return nil
 }
 
 func ensureAESDemoKeys(keyDir string, kids ...string) error {

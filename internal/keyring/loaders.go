@@ -36,7 +36,7 @@ func LoadStringKeys(dir, suffix string) (map[string]string, error) {
 			continue
 		}
 		kid := strings.TrimSuffix(entry.Name(), suffix)
-		raw, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		raw, err := os.ReadFile(filepath.Join(dir, entry.Name())) // #nosec G304 -- file name comes from os.ReadDir enumeration under the supplied directory.
 		if err != nil {
 			return nil, err
 		}

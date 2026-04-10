@@ -1,12 +1,14 @@
 package aes_test
 
 import (
-	"fmt"
+	"log"
+	"os"
 
 	"github.com/gtkit/encry/aes"
 )
 
 func ExampleNewGCM() {
+	out := log.New(os.Stdout, "", 0)
 	gcm := aes.NewGCM("IgkibX71IEf382PT")
 
 	cipherText, err := gcm.Encrypt([]byte("hello-gcm"))
@@ -19,12 +21,13 @@ func ExampleNewGCM() {
 		panic(err)
 	}
 
-	fmt.Println(plainText)
+	out.Println(plainText)
 	// Output:
 	// hello-gcm
 }
 
 func ExampleGCM_EncryptWithAAD() {
+	out := log.New(os.Stdout, "", 0)
 	gcm := aes.NewGCM("IgkibX71IEf382PT")
 
 	cipherText, err := gcm.EncryptWithAAD([]byte("hello-gcm"), []byte("aad"))
@@ -37,7 +40,7 @@ func ExampleGCM_EncryptWithAAD() {
 		panic(err)
 	}
 
-	fmt.Println(string(plainText))
+	out.Println(string(plainText))
 	// Output:
 	// hello-gcm
 }

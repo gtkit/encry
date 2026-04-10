@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,14 +9,24 @@ import (
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	dir, err := os.MkdirTemp("", "encry-rsa-oaep-*")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(dir)
 
 	if err := rsa.GenerateRsaKey(2048, dir); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	publicKeyPath := filepath.Join(dir, "public.pem")
@@ -25,14 +34,15 @@ func main() {
 
 	cipherText, err := rsa.EncryptOAEPBase64([]byte("hello-oaep"), publicKeyPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	plainText, err := rsa.DecryptOAEPBase64(cipherText, privateKeyPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("cipher:", cipherText)
-	fmt.Println("plain:", string(plainText))
+	out.Println("cipher:", cipherText)
+	out.Println("plain:", string(plainText))
+	return nil
 }

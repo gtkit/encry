@@ -1,7 +1,7 @@
 package sha1
 
 import (
-	stdsha1 "crypto/sha1" //nolint:gosec //legacy compatibility
+	stdsha1 "crypto/sha1" // #nosec G505 -- legacy compatibility package intentionally exposes SHA1 helpers.
 	"crypto/subtle"
 	"encoding/hex"
 	"io"
@@ -16,7 +16,7 @@ func New(str string) string {
 
 // Sum 计算 SHA1 摘要.
 func Sum(data []byte) [stdsha1.Size]byte {
-	return stdsha1.Sum(data) //nolint:gosec //legacy compatibility
+	return stdsha1.Sum(data) // #nosec G401 -- legacy compatibility package intentionally exposes SHA1 helpers.
 }
 
 // Bytes 返回原始 SHA1 摘要字节.
@@ -37,7 +37,7 @@ func String(text string) string {
 
 // Reader 计算 io.Reader 内容的十六进制 SHA1 摘要.
 func Reader(r io.Reader) (string, error) {
-	h := stdsha1.New() //nolint:gosec //legacy compatibility
+	h := stdsha1.New() // #nosec G401 -- legacy compatibility package intentionally exposes SHA1 helpers.
 	if _, err := io.Copy(h, r); err != nil {
 		return "", err
 	}
@@ -46,7 +46,7 @@ func Reader(r io.Reader) (string, error) {
 
 // File 计算文件内容的十六进制 SHA1 摘要.
 func File(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- this helper intentionally opens a caller-provided file path.
 	if err != nil {
 		return "", err
 	}

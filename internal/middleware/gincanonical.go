@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 
@@ -12,8 +13,12 @@ import (
 // GinVerifyRequestMiddleware 返回一个基于 canonical request 的 Gin 验签中间件.
 func GinVerifyRequestMiddleware(verifier httpsig.Verifier, opts httpsig.VerifyOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		body, err := io.ReadAll(c.Request.Body)
+		body, err := readRequestBody(c.Request.Body, opts.MaxBodyBytes)
 		if err != nil {
+			if errors.Is(err, errRequestBodyTooLarge) {
+				c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": err.Error()})
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "read request body failed"})
 			return
 		}

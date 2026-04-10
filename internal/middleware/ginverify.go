@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 
@@ -10,6 +11,11 @@ import (
 
 // GinVerifyMiddleware 返回一个基于 X-Signature 头的 Gin 验签中间件.
 func GinVerifyMiddleware(verifier SignatureVerifier) gin.HandlerFunc {
+	return GinVerifyMiddlewareWithOptions(verifier, VerifyMiddlewareOptions{})
+}
+
+// GinVerifyMiddlewareWithOptions 返回一个基于 X-Signature 头的 Gin 验签中间件.
+func GinVerifyMiddlewareWithOptions(verifier SignatureVerifier, opts VerifyMiddlewareOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		signature := c.GetHeader("X-Signature")
 		if signature == "" {
@@ -17,8 +23,12 @@ func GinVerifyMiddleware(verifier SignatureVerifier) gin.HandlerFunc {
 			return
 		}
 
-		body, err := io.ReadAll(c.Request.Body)
+		body, err := readRequestBody(c.Request.Body, opts.MaxBodyBytes)
 		if err != nil {
+			if errors.Is(err, errRequestBodyTooLarge) {
+				c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": err.Error()})
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "read request body failed"})
 			return
 		}

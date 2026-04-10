@@ -43,6 +43,8 @@ func Compare(password, hashedPassword string) error {
 }
 
 // HashNeedRefresh 判断密码是否需要刷新.
+//
+//nolint:revive // keep exported compatibility with existing callers.
 func HashNeedRefresh(hashedPwd string, cost ...int) bool {
 	hashCost, err := bcrypt.Cost([]byte(hashedPwd))
 	return err != nil || hashCost != passCost(cost...)

@@ -47,7 +47,7 @@ func Reader(r io.Reader) (string, error) {
 
 // File 计算文件内容的 SHA256 十六进制摘要.
 func File(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- this helper intentionally opens a caller-provided file path.
 	if err != nil {
 		return "", err
 	}

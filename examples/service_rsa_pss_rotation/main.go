@@ -3,20 +3,29 @@ package main
 import (
 	"crypto"
 	stdrsa "crypto/rsa"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/gtkit/encry/internal/cryptoenv"
+	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/signer"
 	encryrsa "github.com/gtkit/encry/rsa"
+	json "github.com/gtkit/json"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
 		"ENCRY_RSA_PSS_KEY_DIR",
 		"ENCRY_RSA_PSS_ACTIVE_KID",
@@ -25,17 +34,17 @@ func main() {
 		"2026-03",
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer cleanup()
 
 	if err := ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.RSAKeyPair]]()
 	if err := reloadRSAKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	opts := &stdrsa.PSSOptions{
 		SaltLength: stdrsa.PSSSaltLengthEqualsHash,
@@ -45,45 +54,45 @@ func main() {
 
 	signatureV1, err := service.Sign([]byte(`{"report":"settlement","batch":"2026-03-24"}`))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if err := writeRSAMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := reloadRSAKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	signatureV2, err := service.Sign([]byte(`{"report":"settlement","batch":"2026-04-01"}`))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	okV1, err := service.Verify([]byte(`{"report":"settlement","batch":"2026-03-24"}`), signatureV1)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	okV2, err := service.Verify([]byte(`{"report":"settlement","batch":"2026-04-01"}`), signatureV2)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	wrongHashOK, err := service.VerifyWith([]byte(`{"report":"settlement","batch":"2026-04-01"}`), signatureV2, crypto.SHA256, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	snapshot, err := ring.Current()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("key dir:", cfg.KeyDir)
-	fmt.Println("active kid:", snapshot.ActiveKID)
-	fmt.Println("signature v1:", signatureV1)
-	fmt.Println("signature v2:", signatureV2)
-	fmt.Println("verify v1:", okV1)
-	fmt.Println("verify v2:", okV2)
-	fmt.Println("wrong options rejected:", !wrongHashOK)
+	out.Println("active kid:", snapshot.ActiveKID)
+	out.Println("signature v1 generated:", signatureV1 != "")
+	out.Println("signature v2 generated:", signatureV2 != "")
+	out.Println("verify v1:", okV1)
+	out.Println("verify v2:", okV2)
+	out.Println("wrong options rejected:", !wrongHashOK)
+	return nil
 }
 
 func ensureDemoKeys(keyDir string, kids ...string) error {

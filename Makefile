@@ -1,3 +1,11 @@
+MODULE := github.com/gtkit/encry
+EXAMPLE_PREFIX := $(MODULE)/examples/
+PROD_PACKAGES = $(shell go list ./... | grep -v '^$(EXAMPLE_PREFIX)')
+EXAMPLE_PACKAGES = $(shell go list ./... | grep '^$(EXAMPLE_PREFIX)')
+PROD_DIRS = $(shell go list -f '{{.Dir}}' ./... | grep -v '/examples/')
+EXAMPLE_DIRS = $(shell go list -f '{{.Dir}}' ./... | grep '/examples/')
+PROD_LINT_TARGETS = $(shell go list -f '{{.Dir}}' ./... | grep -v '/examples/' | sed 's|^$(CURDIR)|.|')
+EXAMPLE_LINT_TARGETS = $(shell go list -f '{{.Dir}}' ./... | grep '/examples/' | sed 's|^$(CURDIR)|.|')
 
 .PHONY: help
 help: ## Display this help.
@@ -9,23 +17,71 @@ help: ## Display this help.
 .PHONY: test
 TEST_ARGS ?= -v
 TEST_TARGETS ?= ./...
-test: ## Test the Go modules within this package.
+test: ## Test all Go packages, including examples.
 	@ echo ▶️ go test $(TEST_ARGS) $(TEST_TARGETS)
 	go test $(TEST_ARGS) $(TEST_TARGETS)
 	@ echo ✅ success!
 
+.PHONY: test-prod
+test-prod: ## Test production packages only; excludes examples/.
+	@ echo ▶️ go test $(TEST_ARGS) $(PROD_PACKAGES)
+	go test $(TEST_ARGS) $(PROD_PACKAGES)
+	@ echo ✅ success!
+
+.PHONY: test-examples
+test-examples: ## Test example packages only.
+	@ echo ▶️ go test $(TEST_ARGS) $(EXAMPLE_PACKAGES)
+	go test $(TEST_ARGS) $(EXAMPLE_PACKAGES)
+	@ echo ✅ success!
+
+.PHONY: build-examples
+build-examples: ## Build example packages only.
+	@ echo ▶️ go build $(EXAMPLE_PACKAGES)
+	go build $(EXAMPLE_PACKAGES)
+	@ echo ✅ success!
+
+.PHONY: verify-prod
+verify-prod: ## Run production-only test, race, and vet checks.
+	@ echo ▶️ go test $(TEST_ARGS) $(PROD_PACKAGES)
+	go test $(TEST_ARGS) $(PROD_PACKAGES)
+	@ echo ▶️ go test -race $(PROD_PACKAGES)
+	go test -race $(PROD_PACKAGES)
+	@ echo ▶️ go vet $(PROD_PACKAGES)
+	go vet $(PROD_PACKAGES)
+	@ echo ✅ success!
 
 .PHONY: lint
 LINT_TARGETS ?= ./...
-lint: ## Lint Go code with the installed golangci-lint
-	@ echo "▶️ golangci-lint run"
-	golangci-lint run $(LINT_TARGETS)
+lint: ## Lint all Go packages, including examples.
+	@ echo "▶️ golangci-lint run --allow-serial-runners $(LINT_TARGETS)"
+	golangci-lint run --allow-serial-runners $(LINT_TARGETS)
+	@ echo "✅ golangci-lint run"
+
+.PHONY: lint-prod
+lint-prod: ## Lint production packages only; excludes examples/.
+	@ echo "▶️ golangci-lint run --allow-serial-runners $(PROD_LINT_TARGETS)"
+	golangci-lint run --allow-serial-runners $(PROD_LINT_TARGETS)
+	@ echo "✅ golangci-lint run"
+
+.PHONY: lint-examples
+lint-examples: ## Lint example packages only.
+	@ echo "▶️ golangci-lint run --allow-serial-runners $(EXAMPLE_LINT_TARGETS)"
+	golangci-lint run --allow-serial-runners $(EXAMPLE_LINT_TARGETS)
 	@ echo "✅ golangci-lint run"
 
 
+.PHONY: check-secure
 check-secure:
 	govulncheck ./...
 	gosec ./...
+
+.PHONY: check-secure-prod
+check-secure-prod: ## Run security scanners on production packages only.
+	@ echo ▶️ govulncheck $(PROD_PACKAGES)
+	govulncheck $(PROD_PACKAGES)
+	@ echo ▶️ gosec $(PROD_DIRS)
+	gosec $(PROD_DIRS)
+	@ echo ✅ success!
 
 ## 推送标签到远程仓库时，通常不需要指定分支
 tag:

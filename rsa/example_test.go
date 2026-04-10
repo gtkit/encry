@@ -1,7 +1,7 @@
 package rsa_test
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -9,6 +9,7 @@ import (
 )
 
 func ExampleEncryptOAEPBase64() {
+	out := log.New(os.Stdout, "", 0)
 	dir, err := os.MkdirTemp("", "encry-rsa-oaep-*")
 	if err != nil {
 		panic(err)
@@ -29,12 +30,13 @@ func ExampleEncryptOAEPBase64() {
 		panic(err)
 	}
 
-	fmt.Println(string(plainText))
+	out.Println(string(plainText))
 	// Output:
 	// hello-oaep
 }
 
 func ExampleSignPSSBase64() {
+	out := log.New(os.Stdout, "", 0)
 	dir, err := os.MkdirTemp("", "encry-rsa-pss-*")
 	if err != nil {
 		panic(err)
@@ -51,7 +53,7 @@ func ExampleSignPSSBase64() {
 	}
 
 	err = rsa.VerifyPSSBase64([]byte("hello-pss"), filepath.Join(dir, "public.pem"), signature)
-	fmt.Println(err == nil)
+	out.Println(err == nil)
 	// Output:
 	// true
 }

@@ -2,7 +2,7 @@ package hmac
 
 import (
 	"crypto/hmac"
-	"crypto/sha1" //nolint:gosec //used
+	"crypto/sha1" // #nosec G505 -- HMAC-SHA1 is retained for legacy compatibility.
 	"encoding/base64"
 	"encoding/hex"
 )

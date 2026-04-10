@@ -21,10 +21,19 @@ func newFakeEvalClient() *fakeEvalClient {
 	}
 }
 
-func (f *fakeEvalClient) Eval(_ context.Context, _ string, keys []string, args ...any) *redis.Cmd {
-	nowMs := args[0].(int64)
-	expiresAtMs := args[1].(int64)
-	ttlMs := args[2].(int64)
+func (f *fakeEvalClient) Eval(ctx context.Context, _ string, keys []string, args ...any) *redis.Cmd {
+	nowMs, ok := args[0].(int64)
+	if !ok {
+		return redis.NewCmd(ctx)
+	}
+	expiresAtMs, ok := args[1].(int64)
+	if !ok {
+		return redis.NewCmd(ctx)
+	}
+	ttlMs, ok := args[2].(int64)
+	if !ok {
+		return redis.NewCmd(ctx)
+	}
 
 	now := time.UnixMilli(nowMs)
 	for nonceKey, deadline := range f.nonceKeys {
@@ -34,7 +43,7 @@ func (f *fakeEvalClient) Eval(_ context.Context, _ string, keys []string, args .
 		}
 	}
 
-	cmd := redis.NewCmd(context.Background())
+	cmd := redis.NewCmd(ctx)
 	nonceKey := keys[0]
 	if deadline, ok := f.nonceKeys[nonceKey]; ok && now.Before(deadline) {
 		cmd.SetVal(int64(0))

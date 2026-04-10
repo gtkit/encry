@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,69 +9,81 @@ import (
 	"github.com/gtkit/encry/ed"
 	"github.com/gtkit/encry/internal/keyring"
 	encryrsa "github.com/gtkit/encry/rsa"
+	json "github.com/gtkit/json"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	dir, err := os.MkdirTemp("", "encry-jwks-*")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(dir)
 
 	edDir := filepath.Join(dir, "ed25519")
 	rsaDir := filepath.Join(dir, "rsa")
 	if err := ensureEdKeys(edDir, "ed-active", keyring.StatusActive, false); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := ensureEdKeys(edDir, "ed-revoked", keyring.StatusRevoked, true); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := ensureRSAKeys(rsaDir, "rsa-active", keyring.StatusActive, false); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := ensureRSAKeys(rsaDir, "rsa-retiring", keyring.StatusRetiring, false); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	edRing := keyring.New[keyring.Record[keyring.Ed25519KeyPair]]()
 	edRecords, err := keyring.LoadEd25519KeyPairRecords(edDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := edRing.Store("ed-active", edRecords); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	edSnapshot, err := edRing.Current()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	rsaRing := keyring.New[keyring.Record[keyring.RSAKeyPair]]()
 	rsaRecords, err := keyring.LoadRSAKeyPairRecords(rsaDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := rsaRing.Store("rsa-active", rsaRecords); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	rsaSnapshot, err := rsaRing.Current()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	edJWK, err := keyring.Ed25519PublicJWKSet(edSnapshot).JSON()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	rsaJWK, err := keyring.RSAPublicJWKSet(rsaSnapshot).JSON()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("ed25519 jwks:")
-	fmt.Println(string(edJWK))
-	fmt.Println("rsa jwks:")
-	fmt.Println(string(rsaJWK))
+	out.Println("ed25519 jwks:")
+	out.Println(string(edJWK))
+	out.Println("rsa jwks:")
+	out.Println(string(rsaJWK))
+	return nil
 }
 
 func ensureEdKeys(root, kid string, status keyring.KeyStatus, revoked bool) error {

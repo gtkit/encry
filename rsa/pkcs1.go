@@ -29,7 +29,9 @@ func GenerateRsaKey(keySize int, dirPath string) error {
 	return writePEMFile(filepath.Join(dirPath, "public.pem"), publicPEM, 0o644)
 }
 
-// Encrypt 使用公钥执行单块 PKCS#1 v1.5 加密.
+// Deprecated: Encrypt uses RSA PKCS#1 v1.5 encryption and is kept only for
+// legacy compatibility. New systems should use EncryptOAEP or
+// EncryptOAEPBase64.
 func Encrypt(plainText []byte, filePath string) ([]byte, error) {
 	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
@@ -38,7 +40,8 @@ func Encrypt(plainText []byte, filePath string) ([]byte, error) {
 	return EncryptPKCS1v15(publicKey, plainText)
 }
 
-// EncryptToBase64 使用公钥执行单块 PKCS#1 v1.5 加密并返回 Base64.
+// Deprecated: EncryptToBase64 uses RSA PKCS#1 v1.5 encryption and is kept only
+// for legacy compatibility. New systems should use EncryptOAEPBase64.
 func EncryptToBase64(plainText []byte, filePath string) (string, error) {
 	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
@@ -47,7 +50,9 @@ func EncryptToBase64(plainText []byte, filePath string) (string, error) {
 	return EncryptPKCS1v15Base64(publicKey, plainText)
 }
 
-// Decrypt 使用私钥执行单块 PKCS#1 v1.5 解密.
+// Deprecated: Decrypt uses RSA PKCS#1 v1.5 decryption and is kept only for
+// legacy compatibility. New systems should use DecryptOAEP or
+// DecryptOAEPBase64.
 func Decrypt(cipherText []byte, filePath string) ([]byte, error) {
 	privateKey, err := ReadPrivateKey(filePath)
 	if err != nil {
@@ -56,7 +61,8 @@ func Decrypt(cipherText []byte, filePath string) ([]byte, error) {
 	return DecryptPKCS1v15(privateKey, cipherText)
 }
 
-// DecryptBase64 使用私钥执行单块 PKCS#1 v1.5 Base64 解密.
+// Deprecated: DecryptBase64 uses RSA PKCS#1 v1.5 decryption and is kept only
+// for legacy compatibility. New systems should use DecryptOAEPBase64.
 func DecryptBase64(cipherText, filePath string) ([]byte, error) {
 	privateKey, err := ReadPrivateKey(filePath)
 	if err != nil {
@@ -65,7 +71,9 @@ func DecryptBase64(cipherText, filePath string) ([]byte, error) {
 	return DecryptPKCS1v15Base64(privateKey, cipherText)
 }
 
-// EncryptBlock 公钥分段加密并返回 Base64，保留兼容旧接口.
+// Deprecated: EncryptBlock uses chunked RSA PKCS#1 v1.5 encryption and is kept
+// only for legacy compatibility. New systems should use
+// EncryptOAEPChunkedBase64.
 func EncryptBlock(src []byte, filePath string) (string, error) {
 	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
@@ -74,7 +82,9 @@ func EncryptBlock(src []byte, filePath string) (string, error) {
 	return EncryptPKCS1v15ChunkedBase64(publicKey, src)
 }
 
-// EncryptBlockBytes 公钥分段加密并返回原始字节.
+// Deprecated: EncryptBlockBytes uses chunked RSA PKCS#1 v1.5 encryption and is
+// kept only for legacy compatibility. New systems should use
+// EncryptOAEPChunked.
 func EncryptBlockBytes(src []byte, filePath string) ([]byte, error) {
 	publicKey, err := ReadPublicKey(filePath)
 	if err != nil {
@@ -83,7 +93,8 @@ func EncryptBlockBytes(src []byte, filePath string) ([]byte, error) {
 	return EncryptPKCS1v15Chunked(publicKey, src)
 }
 
-// DecryptBlock 私钥分段解密原始字节.
+// Deprecated: DecryptBlock uses chunked RSA PKCS#1 v1.5 decryption and is kept
+// only for legacy compatibility. New systems should use DecryptOAEPChunked.
 func DecryptBlock(src []byte, filePath string) ([]byte, error) {
 	privateKey, err := ReadPrivateKey(filePath)
 	if err != nil {
@@ -92,7 +103,9 @@ func DecryptBlock(src []byte, filePath string) ([]byte, error) {
 	return DecryptPKCS1v15Chunked(privateKey, src)
 }
 
-// DecryptBlockBase64 私钥分段解密 Base64 字符串.
+// Deprecated: DecryptBlockBase64 uses chunked RSA PKCS#1 v1.5 decryption and
+// is kept only for legacy compatibility. New systems should use
+// DecryptOAEPChunkedBase64.
 func DecryptBlockBase64(src, filePath string) ([]byte, error) {
 	privateKey, err := ReadPrivateKey(filePath)
 	if err != nil {

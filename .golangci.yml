@@ -1,272 +1,283 @@
-## Golden config for golangci-lint v1.47.3
-#
-# This is the best config for golangci-lint based on my experience and opinion.
-# It is very strict, but not extremely strict.
-# Feel free to adopt and change it for your needs.
+# golangci-lint v1.64.8 配置（v1 最终版本）
+# 适用于 Go 1.26+
 
 run:
-  # Timeout for analysis, e.g. 30s, 5m.
-  # Default: 1m
-  timeout: 3m
+  timeout: 5m
+  tests: true
+  concurrency: 4
 
-
-# This file contains only configs which differ from defaults.
-# All possible options can be found here https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
-linters-settings:
-  cyclop:
-    # The maximal code complexity to report.
-    # Default: 10
-    max-complexity: 30
-    # The maximal average package complexity.
-    # If it's higher than 0.0 (float) the check is enabled
-    # Default: 0.0
-    package-average: 10.0
-
-  errcheck:
-    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
-    # Such cases aren't reported by default.
-    # Default: false
-    check-type-assertions: true
-
-  funlen:
-    # Checks the number of lines in a function.
-    # If lower than 0, disable the check.
-    # Default: 60
-    lines: 100
-    # Checks the number of statements in a function.
-    # If lower than 0, disable the check.
-    # Default: 40
-    statements: 50
-
-  gocognit:
-    # Minimal code complexity to report
-    # Default: 30 (but we recommend 10-20)
-    min-complexity: 20
-
-  gocritic:
-    # Settings passed to gocritic.
-    # The settings key is the name of a supported gocritic checker.
-    # The list of supported checkers can be find in https://go-critic.github.io/overview.
-    settings:
-      captLocal:
-        # Whether to restrict checker to params only.
-        # Default: true
-        paramsOnly: false
-      underef:
-        # Whether to skip (*x).method() calls where x is a pointer receiver.
-        # Default: true
-        skipRecvDeref: false
-
-  gomnd:
-    # List of function patterns to exclude from analysis.
-    # Values always ignored: `time.Date`
-    # Default: []
-    ignored-functions:
-      - os.Chmod
-      - os.Mkdir
-      - os.MkdirAll
-      - os.OpenFile
-      - os.WriteFile
-      - prometheus.ExponentialBuckets
-      - prometheus.ExponentialBucketsRange
-      - prometheus.LinearBuckets
-      - strconv.FormatFloat
-      - strconv.FormatInt
-      - strconv.FormatUint
-      - strconv.ParseFloat
-      - strconv.ParseInt
-      - strconv.ParseUint
-
-  gomodguard:
-    blocked:
-      # List of blocked modules.
-      # Default: []
-      modules:
-        - github.com/golang/protobuf:
-            recommendations:
-              - google.golang.org/protobuf
-            reason: "see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules"
-        - github.com/satori/go.uuid:
-            recommendations:
-              - github.com/google/uuid
-            reason: "satori's package is not maintained"
-        - github.com/gofrs/uuid:
-            recommendations:
-              - github.com/google/uuid
-            reason: "see recommendation from dev-infra team: https://confluence.gtforge.com/x/gQI6Aw"
-
-  govet:
-    # Enable all analyzers.
-    # Default: false
-    enable-all: true
-    # Disable analyzers by name.
-    # Run `go tool vet help` to see all analyzers.
-    # Default: []
-    disable:
-      - fieldalignment # too strict
-    # Settings per analyzer.
-    settings:
-      shadow:
-        # Whether to be strict about shadowing; can be noisy.
-        # Default: false
-        strict: true
-
-  nakedret:
-    # Make an issue if func has more lines of code than this setting, and it has naked returns.
-    # Default: 30
-    max-func-lines: 0
-
-  nolintlint:
-    # Exclude following linters from requiring an explanation.
-    # Default: []
-    allow-no-explanation: [ funlen, gocognit, lll ]
-    # Enable to require an explanation of nonzero length after each nolint directive.
-    # Default: false
-    require-explanation: true
-    # Enable to require nolint directives to mention the specific linter being suppressed.
-    # Default: false
-    require-specific: true
-
-  rowserrcheck:
-    # database/sql is always checked
-    # Default: []
-    packages:
-      - github.com/jmoiron/sqlx
-
-  tenv:
-    # The option `all` will run against whole test files (`_test.go`) regardless of method/function signatures.
-    # Otherwise, only methods that take `*testing.T`, `*testing.B`, and `testing.TB` as arguments are checked.
-    # Default: false
-    all: true
-
-  varcheck:
-    # Check usage of exported fields and variables.
-    # Default: false
-    exported-fields: false # default false # TODO: enable after fixing false positives
-
+output:
+  formats:
+    - format: colored-line-number
+  sort-results: true
 
 linters:
   disable-all: true
   enable:
-    ## enabled by default
-    - errcheck # Errcheck is a program for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
-    - gosimple # Linter for Go source code that specializes in simplifying a code
-    - govet # Vet examines Go source code and reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
-    - ineffassign # Detects when assignments to existing variables are not used
-    - staticcheck # Staticcheck is a go vet on steroids, applying a ton of static analysis checks
-    - typecheck # Like the front-end of a Go compiler, parses and type-checks Go code
-    - unused # Checks Go code for unused constants, variables, functions and types
-    ## disabled by default
-    # - asasalint # Check for pass []interface{} as interface{} in variadic func(...interface{})
-    - asciicheck # Simple linter to check that your code does not contain non-ASCII identifiers
-    - bidichk # Checks for dangerous unicode character sequences
-    - bodyclose # checks whether HTTP response body is closed successfully
-    - contextcheck # check the function whether use a non-inherited context
-    - cyclop # checks function and package cyclomatic complexity
-    - dupl # Tool for code clone detection
-    - durationcheck # check for two durations multiplied together
-    - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error.
-    - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
-    - execinquery # execinquery is a linter about query string checker in Query function which reads your Go src files and warning it finds
-    - exhaustive # check exhaustiveness of enum switch statements
-    - exportloopref # checks for pointers to enclosing loop variables
-    - forbidigo # Forbids identifiers
-    - funlen # Tool for detection of long functions
-    # - gochecknoglobals # check that no global variables exist
-    - gochecknoinits # Checks that no init functions are present in Go code
-    - gocognit # Computes and checks the cognitive complexity of functions
-    - goconst # Finds repeated strings that could be replaced by a constant
-    - gocritic # Provides diagnostics that check for bugs, performance and style issues.
-    - gocyclo # Computes and checks the cyclomatic complexity of functions
-    - godot # Check if comments end in a period
-    - goimports # In addition to fixing imports, goimports also formats your code in the same style as gofmt.
-    - gomnd # An analyzer to detect magic numbers.
-    - gomoddirectives # Manage the use of 'replace', 'retract', and 'excludes' directives in go.mod.
-    - gomodguard # Allow and block list linter for direct Go module dependencies. This is different from depguard where there are different block types for example version constraints and module recommendations.
-    - goprintffuncname # Checks that printf-like functions are named with f at the end
-    - gosec # Inspects source code for security problems
-    - lll # Reports long lines
-    - makezero # Finds slice declarations with non-zero initial length
-    # - nakedret # Finds naked returns in functions greater than a specified function length
-    - nestif # Reports deeply nested if statements
-    - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
-    - nilnil # Checks that there is no simultaneous return of nil error and an invalid value.
-    # - noctx # noctx finds sending http request without context.Context
-    - nolintlint # Reports ill-formed or insufficient nolint directives
-    # - nonamedreturns # Reports all named returns
-    - nosprintfhostport # Checks for misuse of Sprintf to construct a host with port in a URL.
-    - predeclared # find code that shadows one of Go's predeclared identifiers
-    - promlinter # Check Prometheus metrics naming via promlint
-    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
-    - rowserrcheck # checks whether Err of rows is checked successfully
-    - sqlclosecheck # Checks that sql.Rows and sql.Stmt are closed.
-    - stylecheck # Stylecheck is a replacement for golint
-    - tenv # tenv is analyzer that detects using os.Setenv instead of t.Setenv since Go1.17
-    - testpackage # linter that makes you use a separate _test package
-    - tparallel # tparallel detects inappropriate usage of t.Parallel() method in your Go test codes
-    - unconvert # Remove unnecessary type conversions
-    - unparam # Reports unused function parameters
-    - wastedassign # wastedassign finds wasted assignment statements.
-    - whitespace # Tool for detection of leading and trailing whitespace
-    ## you may want to enable
-    #- decorder # check declaration order and count of types, constants, variables and functions
-    #- exhaustruct # Checks if all structure fields are initialized
-    #- goheader # Checks is file header matches to pattern
-    #- ireturn # Accept Interfaces, Return Concrete Types
-    #- prealloc # [premature optimization, but can be used in some cases] Finds slice declarations that could potentially be preallocated
-    #- varnamelen # [great idea, but too minterface{} false positives] checks that the length of a variable's name matches its scope
-    #- wrapcheck # Checks that errors returned from external packages are wrapped
-    ## disabled
-    #- containedctx # containedctx is a linter that detects struct contained context.Context field
-    #- depguard # [replaced by gomodguard] Go linter that checks if package imports are in a list of acceptable packages
-    #- dogsled # Checks assignments with too minterface{} blank identifiers (e.g. x, _, _, _, := f())
-    #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] Checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted.
-    #- forcetypeassert # [replaced by errcheck] finds forced type assertions
-    #- gci # Gci controls golang package import order and makes it always deterministic.
-    #- godox # Tool for detection of FIXME, TODO and other comment keywords
-    #- goerr113 # [too strict] Golang linter to check the errors handling expressions
-    #- gofmt # [replaced by goimports] Gofmt checks whether code was gofmt-ed. By default this tool runs with -s option to check for code simplification
-    #- gofumpt # [replaced by goimports, gofumports is not available yet] Gofumpt checks whether code was gofumpt-ed.
-    #- grouper # An analyzer to analyze expression groups.
-    #- ifshort # Checks that your code uses short syntax for if-statements whenever possible
-    #- importas # Enforces consistent import aliases
-    #- maintidx # maintidx measures the maintainability index of each function.
-    #- misspell # [useless] Finds commonly misspelled English words in comments
-    #- nlreturn # [too strict and mostly code is not more readable] nlreturn checks for a new line before return and branch statements to increase code clarity
-    #- nosnakecase # Detects snake case of variable naming and function name. # TODO: maybe enable after https://github.com/sivchari/nosnakecase/issues/14
-    #- paralleltest # [too minterface{} false positives] paralleltest detects missing usage of t.Parallel() method in your Go test
-    #- tagliatelle # Checks the struct tags.
-    #- thelper # thelper detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    #- wsl # [too strict and mostly code is not more readable] Whitespace Linter - Forces you to use empty lines!
-    ## deprecated
-    #- exhaustivestruct # [deprecated, replaced by exhaustruct] Checks if all struct's fields are initialized
-    #- golint # [deprecated, replaced by revive] Golint differs from gofmt. Gofmt reformats Go source code, whereas golint prints out style mistakes
-    #- interfacer # [deprecated] Linter that suggests narrower interface types
-    #- maligned # [deprecated, replaced by govet fieldalignment] Tool to detect Go structs that would take less memory if their fields were sorted
-    #- scopelint # [deprecated, replaced by exportloopref] Scopelint checks for unpinned variables in go programs
+    # ── 基础必备（默认开启的 6 个）─────────────────────
+    - errcheck          # 未处理的 error 返回值
+    - gosimple          # 简化代码建议（staticcheck 系列）
+    - govet             # go vet 官方检查
+    - ineffassign       # 无效赋值
+    - staticcheck       # 最强静态分析器
+    - unused            # 未使用的代码
 
+    # ── 错误处理 ──────────────────────────────────────
+    - nilerr            # err != nil 却返回 nil error
+    - nilnesserr        # nilness 相关错误模式
+    - errname           # error 类型命名规范（ErrXxx / XxxError）
+    - wrapcheck         # 跨包 error 必须 wrap
+    - errchkjson        # json 编码函数的类型安全检查
+
+    # ── Bug 预防 ──────────────────────────────────────
+    - bodyclose         # HTTP response body 必须关闭
+    - contextcheck      # context 传播检查
+    - durationcheck     # time.Duration 乘法错误
+    - noctx             # HTTP 请求必须带 context
+    - sqlclosecheck     # sql.Rows/Stmt 必须关闭
+    - reassign          # 包级变量被重新赋值检查
+    - recvcheck         # receiver 类型一致性检查
+    - rowserrcheck      # sql Rows.Err 检查
+    - nosprintfhostport # Sprintf 构造 host:port 误用
+
+    # ── 代码风格 ──────────────────────────────────────
+    - gofmt             # 标准格式化
+    - goimports         # import 分组排序
+    - misspell          # 英文拼写检查
+    - unconvert         # 去除不必要的类型转换
+    - unparam           # 未使用的函数参数
+    - revive            # golint 替代品，规则丰富
+    - godot             # 导出符号注释以句号结尾
+    - whitespace        # 多余空行检查
+    - predeclared       # 遮蔽预定义标识符
+    - nolintlint        # nolint 指令格式检查
+    - stylecheck        # staticcheck 风格子集
+    - canonicalheader   # net/http.Header 规范化
+
+    # ── 性能 ──────────────────────────────────────────
+    - prealloc          # slice 预分配建议
+    - perfsprint        # fmt.Sprintf 可优化为 strconv 等
+
+    # ── 安全 ──────────────────────────────────────────
+    - gosec             # 安全漏洞检查
+
+    # ── 复杂度 ──────────────────────────────────────
+    - gocognit          # 认知复杂度
+    - cyclop            # 圈复杂度
+    - nestif            # 嵌套 if 深度
+
+    # ── 现代化（Go 1.22+ / 1.24+）────────────────────
+    - copyloopvar       # 循环变量拷贝检查（替代已废弃的 exportloopref）
+    - intrange          # for i := 0; i < n; i++ → for i := range n
+    - exptostd          # golang.org/x/exp → 标准库迁移
+    - fatcontext        # context 嵌套优化
+    - usestdlibvars     # 使用标准库常量（http.StatusOK 等）
+
+    # ── 测试 ──────────────────────────────────────────
+    - usetesting        # 替代已废弃的 tenv，检查 t.Setenv / t.Context 等
+    - tparallel         # t.Parallel() 使用规范
+
+    # ── 其他实用 ──────────────────────────────────────
+    - asasalint         # variadic func(...any) 误传 []any
+    - dupword           # 注释中重复单词
+    - gocritic          # 综合性代码审查
+    - nakedret          # 禁止长函数使用裸 return
+    - tagalign          # struct tag 对齐
+    - wastedassign      # 无用赋值检测
+    - gocheckcompilerdirectives # //go: 编译器指令有效性检查
+    - musttag           # (un)marshaled struct 必须有 tag
+    - mirror            # bytes/strings 镜像用法修正
+    - sloglint          # log/slog 风格一致性
+    - protogetter       # proto message 应使用 getter
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # struct 字段对齐建议，手动控制
+
+  staticcheck:
+    checks:
+      - "all"
+
+  stylecheck:
+    checks:
+      - "all"
+      - "-ST1000"  # 包注释格式（按需开启）
+      - "-ST1003"  # 命名规范由 revive 处理
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gocognit:
+    min-complexity: 25
+
+  cyclop:
+    max-complexity: 15
+    package-average: 5.0
+
+  nestif:
+    min-complexity: 5
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - opinionated
+    disabled-checks:
+      - ifElseChain      # 与 revive indent-error-flow 重叠
+      - hugeParam        # 大 struct 传值有时是有意为之
+      - rangeValCopy     # Go 1.22+ 语义已变
+
+  nakedret:
+    max-func-lines: 20
+
+  gosec:
+    excludes:
+      - G104  # 未检查 error（已有 errcheck 覆盖）
+      - G304  # 文件路径由变量构造（太常见）
+
+  misspell:
+    locale: US
+
+  perfsprint:
+    int-conversion: true
+    err-error: true
+    errorf: true
+    sprintf1: true
+
+  godot:
+    scope: declarations
+
+  tagalign:
+    align: true
+    sort: true
+    order:
+      - json
+      - yaml
+      - xml
+      - toml
+      - mapstructure
+      - binding
+      - validate
+      - gorm
+      - db
+      - redis
+
+  usestdlibvars:
+    http-method: true
+    http-status-code: true
+    time-weekday: true
+    time-month: true
+    time-layout: true
+    crypto-hash: true
+    default-rpc-path: true
+
+  usetesting:
+    # 检查 os.Setenv → t.Setenv（替代已废弃的 tenv）
+    os-setenv: true
+    # 检查 os.TempDir → t.TempDir
+    os-temp-dir: true
+    # 检查 context.Background/TODO → t.Context()（Go 1.24+）
+    context-background: true
+    context-todo: true
+
+  sloglint:
+    kv-only: false
+    attr-only: false
+    key-naming-case: snake
+
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+  wrapcheck:
+    ignoreSigs:
+      - ".Errorf("
+      - "errors.New("
+      - "errors.Unwrap("
+      - "errors.Join("
+      - ".Wrap("
+      - ".Wrapf("
+      - ".WithMessage("
+      - ".WithMessagef("
+      - ".WithStack("
 
 issues:
-  # Maximum count of issues with the same text.
-  # Set to 0 to disable.
-  # Default: 3
-  max-same-issues: 50
+  max-issues-per-linter: 0
+  max-same-issues: 0
 
   exclude-rules:
-    - source: "^//\\s*go:generate\\s"
-      linters: [ lll ]
-    - source: "(noinspection|TODO)"
-      linters: [ godot ]
-    - source: "//noinspection"
-      linters: [ gocritic ]
-    - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
-      linters: [ errorlint ]
-    - path: "_test\\.go"
+    # 测试文件放宽限制
+    - path: _test\.go
       linters:
-        - bodyclose
-        - dupl
-        - funlen
-        - goconst
         - gosec
-        - noctx
         - wrapcheck
+        - gocritic
+        - gocognit
+        - cyclop
+        - nestif
+        - errcheck
+        - dupword
+        - perfsprint
+        - unparam
+        - musttag
+
+    # generated 文件跳过全部
+    - path: ".*\\.gen\\.go"
+      linters:
+        - all
+
+    # mock 文件跳过全部
+    - path: "mock_.*\\.go"
+      linters:
+        - all
+
+    # protobuf 生成文件跳过
+    - path: ".*\\.pb\\.go"
+      linters:
+        - all
+
+    # cmd/ 入口放宽复杂度
+    - path: "cmd/.*/main\\.go"
+      linters:
+        - gocognit
+        - cyclop
+        - nestif
+
+    # 允许 cmd/ 中使用 fmt.Println
+    - path: "cmd/"
+      text: "fmt.Print"
+      linters:
+        - forbidigo
+
+  exclude-use-default: true

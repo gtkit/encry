@@ -1,7 +1,7 @@
 package rc4
 
 import (
-	stdrc4 "crypto/rc4" //nolint:gosec //legacy compatibility
+	stdrc4 "crypto/rc4" // #nosec G503 -- legacy compatibility package intentionally exposes RC4 helpers.
 	"encoding/base64"
 )
 
@@ -21,7 +21,7 @@ func Apply(key string, src []byte) ([]byte, error) {
 
 // ApplyInPlace 使用 RC4 对输入执行一次流变换，并原地写回结果.
 func ApplyInPlace(key string, buf []byte) error {
-	cipher, err := stdrc4.NewCipher([]byte(key)) //nolint:gosec //legacy compatibility
+	cipher, err := stdrc4.NewCipher([]byte(key)) // #nosec G405 -- legacy compatibility package intentionally exposes RC4 helpers.
 	if err != nil {
 		return err
 	}

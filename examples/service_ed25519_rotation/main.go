@@ -1,20 +1,29 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gtkit/encry/ed"
-	"github.com/gtkit/encry/internal/cryptoenv"
+	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/signer"
+	json "github.com/gtkit/json"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
 		"ENCRY_ED25519_KEY_DIR",
 		"ENCRY_ED25519_ACTIVE_KID",
@@ -23,61 +32,61 @@ func main() {
 		"2026-03",
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer cleanup()
 
 	if err := ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.Ed25519KeyPair]]()
 	if err := reloadEd25519Keys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	service := signer.NewManagedEd25519(ring)
 
 	signatureV1, err := service.Sign([]byte(`{"event":"user.created","id":"1001"}`))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if err := writeEd25519Metadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := reloadEd25519Keys(ring, cfg.KeyDir, "2026-04"); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	signatureV2, err := service.Sign([]byte(`{"event":"user.updated","id":"1001"}`))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	okV1, err := service.Verify([]byte(`{"event":"user.created","id":"1001"}`), signatureV1)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	okV2, err := service.Verify([]byte(`{"event":"user.updated","id":"1001"}`), signatureV2)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	wrongPayloadOK, err := service.Verify([]byte(`{"event":"user.deleted","id":"1001"}`), signatureV2)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	snapshot, err := ring.Current()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("key dir:", cfg.KeyDir)
-	fmt.Println("active kid:", snapshot.ActiveKID)
-	fmt.Println("signature v1:", signatureV1)
-	fmt.Println("signature v2:", signatureV2)
-	fmt.Println("verify v1:", okV1)
-	fmt.Println("verify v2:", okV2)
-	fmt.Println("wrong payload rejected:", !wrongPayloadOK)
+	out.Println("active kid:", snapshot.ActiveKID)
+	out.Println("signature v1 generated:", signatureV1 != "")
+	out.Println("signature v2 generated:", signatureV2 != "")
+	out.Println("verify v1:", okV1)
+	out.Println("verify v2:", okV2)
+	out.Println("wrong payload rejected:", !wrongPayloadOK)
+	return nil
 }
 
 func ensureDemoKeys(keyDir string, kids ...string) error {

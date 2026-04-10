@@ -17,7 +17,7 @@ func newFakeSetNXClient() *fakeSetNXClient {
 	return &fakeSetNXClient{keys: make(map[string]time.Time)}
 }
 
-func (f *fakeSetNXClient) SetNX(_ context.Context, key string, _ any, expiration time.Duration) *redis.BoolCmd {
+func (f *fakeSetNXClient) SetNX(ctx context.Context, key string, _ any, expiration time.Duration) *redis.BoolCmd {
 	now := time.Now()
 	for k, deadline := range f.keys {
 		if !now.Before(deadline) {
@@ -25,7 +25,7 @@ func (f *fakeSetNXClient) SetNX(_ context.Context, key string, _ any, expiration
 		}
 	}
 
-	cmd := redis.NewBoolCmd(context.Background())
+	cmd := redis.NewBoolCmd(ctx)
 	if deadline, ok := f.keys[key]; ok && now.Before(deadline) {
 		cmd.SetVal(false)
 		return cmd

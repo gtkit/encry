@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,23 +9,34 @@ import (
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	dir, err := os.MkdirTemp("", "encry-sha256-file-*")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(dir)
 
 	path := filepath.Join(dir, "payload.json")
 	if err := os.WriteFile(path, []byte(`{"order_id":"1001","status":"paid"}`), 0o600); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	sum, err := encrysha256.File(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("file:", path)
-	fmt.Println("sha256:", sum)
-	fmt.Println("verify:", encrysha256.VerifyString(`{"order_id":"1001","status":"paid"}`, sum))
+	out.Println("file:", path)
+	out.Println("sha256:", sum)
+	out.Println("verify:", encrysha256.VerifyString(`{"order_id":"1001","status":"paid"}`, sum))
+	return nil
 }

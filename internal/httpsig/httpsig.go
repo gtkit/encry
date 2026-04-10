@@ -51,9 +51,10 @@ type Headers struct {
 
 // VerifyOptions 控制验签窗口和防重放策略.
 type VerifyOptions struct {
-	Now     func() time.Time
-	MaxSkew time.Duration
-	Nonces  NonceStore
+	Now          func() time.Time
+	MaxSkew      time.Duration
+	Nonces       NonceStore
+	MaxBodyBytes int64
 }
 
 // MemoryNonceStore 是一个简单的内存防重放实现，适合单进程示例和轻量服务.
@@ -150,6 +151,15 @@ func VerifyRequest(verifier Verifier, method, path, query string, body []byte, h
 		return ErrTimestampSkew
 	}
 
+	payload := CanonicalPayload(method, path, query, body, headers.Timestamp, headers.Nonce)
+	ok, err := verifier.Verify(payload, headers.Signature)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrSignatureInvalid
+	}
+
 	if opts.Nonces != nil {
 		expiresAt := requestTime.Add(maxSkew)
 		ok, err := opts.Nonces.Use(replayKey(headers), expiresAt)
@@ -159,15 +169,6 @@ func VerifyRequest(verifier Verifier, method, path, query string, body []byte, h
 		if !ok {
 			return ErrReplayDetected
 		}
-	}
-
-	payload := CanonicalPayload(method, path, query, body, headers.Timestamp, headers.Nonce)
-	ok, err := verifier.Verify(payload, headers.Signature)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrSignatureInvalid
 	}
 	return nil
 }

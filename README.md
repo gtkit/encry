@@ -15,6 +15,16 @@
 go get github.com/gtkit/encry
 ```
 
+## API 边界
+
+本仓库承诺的公共 API，仅限顶层非 `internal/`、非 `examples/` 的 Go 包。
+
+- 可以直接依赖：顶层算法与工具包，例如 `aes`、`rsa`、`ed`、`sha256`、`hmac`、`hash`
+- 不属于公共 API：`internal/...`，仅供仓库内部实现和示例复用，不承诺兼容性
+- 不属于公共 API：`examples/...` 与 `examples/internal/...`，仅用于演示、模板和编译校验，不建议在业务代码里直接导入
+
+如果你要在业务项目里落地示例中的服务编排方式，建议参考示例实现后在业务仓库内自行封装，而不是直接依赖这些私有包。
+
 ## 目录
 
 | 目录 | 能力 | 说明 |
@@ -25,7 +35,6 @@ go get github.com/gtkit/encry
 | `ed` | `Ed25519` | 密钥生成、PEM、签名验签 |
 | `hmac` | `HMAC-SHA1`、`HMAC-SHA256` | 消息认证 |
 | `hash` | `bcrypt`、`argon2`、`fnv` | 密码哈希与辅助散列 |
-| `jwt` | `HMAC JWT`、`Ed25519 JWT` | Token 生成与解析 |
 | `md5` | `MD5` | 兼容旧系统 |
 | `sha1` | `SHA1` | 兼容旧系统 |
 | `rc4` | `RC4` | 兼容旧系统 |
@@ -38,7 +47,7 @@ go get github.com/gtkit/encry
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/gtkit/encry/aes"
 )
@@ -56,7 +65,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(string(plainText))
+	log.Println(string(plainText))
 }
 ```
 
@@ -66,14 +75,14 @@ func main() {
 package main
 
 import (
-	"fmt"
+	"log"
 
 	encrysha256 "github.com/gtkit/encry/sha256"
 )
 
 func main() {
-	fmt.Println(encrysha256.String("hello"))
-	fmt.Println(encrysha256.String512("hello"))
+	log.Println(encrysha256.String("hello"))
+	log.Println(encrysha256.String512("hello"))
 }
 ```
 
@@ -83,7 +92,7 @@ func main() {
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/gtkit/encry/rsa"
 )
@@ -101,7 +110,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(string(plainText))
+	log.Println(string(plainText))
 }
 ```
 
@@ -111,7 +120,7 @@ func main() {
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/gtkit/encry/rsa"
 )
@@ -125,7 +134,7 @@ func main() {
 	}
 
 	err = rsa.VerifyPSSBase64([]byte("hello-pss"), "./keys/public.pem", signature)
-	fmt.Println(err == nil)
+	log.Println(err == nil)
 }
 ```
 
@@ -135,7 +144,7 @@ func main() {
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/gtkit/encry/ed"
 )
@@ -151,7 +160,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
+	log.Println(ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
 }
 ```
 
@@ -191,7 +200,6 @@ go run ./examples/jwks_publish
 go run ./examples/http_middleware
 go run ./examples/http_middleware_redis
 go run ./examples/gin_middleware
-go run ./examples/jwt_jwks_rotation
 go run ./examples/service_aes_gcm
 go run ./examples/service_ed25519_rotation
 go run ./examples/service_rsa_pss_rotation
@@ -199,12 +207,28 @@ go run ./examples/service_rsa_pss_rotation
 
 示例说明见 [examples/README.md](/Users/xiaozhaofu/go/src/encry/examples/README.md)。
 
+## 构建边界
+
+`examples/...` 是仓库内的独立示例包。
+
+- 它们会被 `go test ./...`、`go build ./...` 这类全仓命令枚举并编译检查
+- 它们不会自动链接进你的生产二进制，除非你显式构建或导入这些包
+
+推荐把生产校验和示例校验分开执行：
+
+```bash
+make verify-prod
+make lint-prod
+make check-secure-prod
+make test-examples
+make build-examples
+make lint-examples
+```
+
 ## 内部结构
 
-如果你想把这些模板继续抽到业务项目里，仓库里现在已经有一套可复用的内部结构：
+如果你想参考这些模板在业务项目里落地，仓库里保留了一组仅供仓库内部和示例复用的私有包：
 
-- `internal/cryptoenv`
-  负责环境变量和默认 key 目录配置
 - `internal/keyring`
   负责 `kid -> key` 的快照、切换、metadata、生命周期和 JWKS-like 公钥发布
 - `internal/sealer`
@@ -215,10 +239,8 @@ go run ./examples/service_rsa_pss_rotation
   负责 `method + path + query + body digest + timestamp + nonce` 的规范化请求签名
 - `internal/middleware`
   负责 `net/http` 和 `Gin` 的签名校验中间件与防重放接入
-- `internal/jwtauth`
-  负责基于 `kid` 的 `Ed25519`、`RSA-PSS` JWT 签发、验签和 `JWKS-like` 公钥发布
 
-这几个包已经被 `examples/service_*` 模板直接复用。
+示例共享的配置辅助逻辑位于 `examples/internal/cryptoenv`，不属于根模块公共 API。
 
 ## 请求签名协议
 
@@ -249,15 +271,19 @@ go run ./examples/service_rsa_pss_rotation
 - `internal/httpsig.RedisLuaNonceStore`
 - `examples/http_middleware_redis`
 
-如果要把 token 签发和公钥发布接到同一套 key ring 上，仓库里现在也有：
-
-- `internal/jwtauth`
-- `examples/jwt_jwks_rotation`
-
 ## 验证
 
 ```bash
-go test ./...
-go test -race ./...
-go vet ./...
+make verify-prod
+make lint-prod
+make check-secure-prod
+make test-examples
+make build-examples
+make lint-examples
+```
+
+如果你只是想做一次全仓 smoke test，仍然可以运行：
+
+```bash
+make test
 ```

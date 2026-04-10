@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,19 +11,30 @@ import (
 	"time"
 
 	"github.com/gtkit/encry/ed"
-	"github.com/gtkit/encry/internal/cryptoenv"
+	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/httpsig"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/middleware"
 	"github.com/gtkit/encry/internal/signer"
+	json "github.com/gtkit/json"
 	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	redisAddr := os.Getenv("ENCRY_REDIS_ADDR")
 	if redisAddr == "" {
-		fmt.Println("set ENCRY_REDIS_ADDR to run Redis-backed nonce store demo")
-		return
+		out.Println("set ENCRY_REDIS_ADDR to run Redis-backed nonce store demo")
+		return nil
 	}
 
 	client := redis.NewClient(&redis.Options{
@@ -39,7 +48,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	cfg, cleanup, err := cryptoenv.LoadKeyConfig(
@@ -50,38 +59,39 @@ func main() {
 		"2026-03",
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer cleanup()
 
 	if err := ensureEdKeys(cfg.KeyDir, "2026-03", keyring.StatusActive); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.Ed25519KeyPair]]()
 	records, err := keyring.LoadEd25519KeyPairRecords(cfg.KeyDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := ring.Store(cfg.ActiveKID, records); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	service := signer.NewManagedEd25519(ring)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /callbacks/order-paid", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /callbacks/order-paid", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("accepted"))
 	})
 
 	handler := middleware.HTTPVerifyRequestMiddleware(service, httpsig.VerifyOptions{
-		MaxSkew: 5 * time.Minute,
-		Nonces:  httpsig.NewRedisNonceStore(client, "encry:httpsig:nonce", 2*time.Second),
+		MaxSkew:      5 * time.Minute,
+		Nonces:       httpsig.NewRedisNonceStore(client, "encry:httpsig:nonce", 2*time.Second),
+		MaxBodyBytes: 1 << 20,
 	})(mux)
 
 	body := []byte(`{"order_id":"1001","status":"paid"}`)
 	headers, err := httpsig.SignRequest(service, http.MethodPost, "/callbacks/order-paid", "", body, time.Now(), "nonce-redis-1")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", bytes.NewReader(body))
@@ -94,8 +104,9 @@ func main() {
 	replayResp := httptest.NewRecorder()
 	handler.ServeHTTP(replayResp, replayReq)
 
-	fmt.Println("valid status:", resp.Code)
-	fmt.Println("replay status:", replayResp.Code)
+	out.Println("valid status:", resp.Code)
+	out.Println("replay status:", replayResp.Code)
+	return nil
 }
 
 func ensureEdKeys(root, kid string, status keyring.KeyStatus) error {

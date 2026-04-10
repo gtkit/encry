@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,9 +9,19 @@ import (
 )
 
 func main() {
+	if err := run(nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(out *log.Logger) error {
+	if out == nil {
+		out = log.New(os.Stdout, "", 0)
+	}
+
 	baseDir, err := os.MkdirTemp("", "encry-ed25519-files-*")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer os.RemoveAll(baseDir)
 
@@ -22,21 +31,22 @@ func main() {
 	publicKeyPath := filepath.Join(keyDir, "public.pem")
 
 	if err := ed.WriteKeyPair(privateKeyPath, publicKeyPath); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	signature, err := ed.SignFileBase64([]byte("customer-export"), privateKeyPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ok, err := ed.VerifyFileBase64([]byte("customer-export"), publicKeyPath, signature)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	fmt.Println("key dir:", keyDir)
-	fmt.Println("private key:", privateKeyPath)
-	fmt.Println("public key:", publicKeyPath)
-	fmt.Println("verify:", ok)
+	out.Println("key dir:", keyDir)
+	out.Println("private key written:", privateKeyPath != "")
+	out.Println("public key written:", publicKeyPath != "")
+	out.Println("verify:", ok)
+	return nil
 }

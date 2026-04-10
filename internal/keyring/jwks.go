@@ -2,9 +2,10 @@ package keyring
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"math/big"
 	"time"
+
+	json "github.com/gtkit/json"
 )
 
 // JWKSet 是一个精简的 JWKS-like 公钥发布结构.
