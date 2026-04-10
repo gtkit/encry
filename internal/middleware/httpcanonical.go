@@ -25,6 +25,7 @@ func HTTPVerifyRequestMiddleware(verifier httpsig.Verifier, opts httpsig.VerifyO
 			r.Body = io.NopCloser(bytes.NewReader(body))
 
 			if err := httpsig.VerifyRequest(
+				r.Context(),
 				verifier,
 				r.Method,
 				r.URL.Path,

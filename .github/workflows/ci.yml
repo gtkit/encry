@@ -23,17 +23,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Resolve production packages
-        id: packages
-        shell: bash
-        run: |
-          echo "prod=$(go list ./... | grep -v '^github.com/gtkit/encry/examples/' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 
       - name: Lint production packages
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.11
-          args: ${{ steps.packages.outputs.prod }}
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          make lint-prod
 
   lint-examples:
     runs-on: ubuntu-latest
@@ -47,17 +43,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Resolve example packages
-        id: packages
-        shell: bash
-        run: |
-          echo "examples=$(go list ./... | grep '^github.com/gtkit/encry/examples/' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 
       - name: Lint example packages
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.11
-          args: ${{ steps.packages.outputs.examples }}
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          make lint-examples
 
   security-prod:
     runs-on: ubuntu-latest

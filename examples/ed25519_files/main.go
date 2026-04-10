@@ -45,8 +45,8 @@ func run(out *log.Logger) error {
 	}
 
 	out.Println("key dir:", keyDir)
-	out.Println("private key written:", privateKeyPath != "")
-	out.Println("public key written:", publicKeyPath != "")
+	out.Println("private key:", privateKeyPath)
+	out.Println("public key:", publicKeyPath)
 	out.Println("verify:", ok)
 	return nil
 }

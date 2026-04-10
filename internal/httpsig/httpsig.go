@@ -1,6 +1,7 @@
 package httpsig
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -39,7 +40,7 @@ type Verifier interface {
 
 // NonceStore 负责记录 timestamp + nonce 组合，防止重放.
 type NonceStore interface {
-	Use(key string, expiresAt time.Time) (bool, error)
+	Use(ctx context.Context, key string, expiresAt time.Time) (bool, error)
 }
 
 // Headers 是请求签名协议用到的头集合.
@@ -71,7 +72,14 @@ func NewMemoryNonceStore() *MemoryNonceStore {
 }
 
 // Use 尝试使用一个 nonce key，若已存在且未过期则视为重放.
-func (s *MemoryNonceStore) Use(key string, expiresAt time.Time) (bool, error) {
+func (s *MemoryNonceStore) Use(ctx context.Context, key string, expiresAt time.Time) (bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -121,7 +129,10 @@ func SignRequest(signer Signer, method, path, query string, body []byte, at time
 }
 
 // VerifyRequest 根据 canonical request 对签名头进行校验.
-func VerifyRequest(verifier Verifier, method, path, query string, body []byte, headers Headers, opts VerifyOptions) error {
+func VerifyRequest(ctx context.Context, verifier Verifier, method, path, query string, body []byte, headers Headers, opts VerifyOptions) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if headers.Signature == "" {
 		return ErrMissingSignature
 	}
@@ -162,7 +173,7 @@ func VerifyRequest(verifier Verifier, method, path, query string, body []byte, h
 
 	if opts.Nonces != nil {
 		expiresAt := requestTime.Add(maxSkew)
-		ok, err := opts.Nonces.Use(replayKey(headers), expiresAt)
+		ok, err := opts.Nonces.Use(ctx, replayKey(headers), expiresAt)
 		if err != nil {
 			return err
 		}

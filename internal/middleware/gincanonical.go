@@ -25,6 +25,7 @@ func GinVerifyRequestMiddleware(verifier httpsig.Verifier, opts httpsig.VerifyOp
 		c.Request.Body = io.NopCloser(bytes.NewReader(body))
 
 		if err := httpsig.VerifyRequest(
+			c.Request.Context(),
 			verifier,
 			c.Request.Method,
 			c.Request.URL.Path,

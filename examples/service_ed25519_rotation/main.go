@@ -80,9 +80,10 @@ func run(out *log.Logger) error {
 		return err
 	}
 
+	out.Println("key dir:", cfg.KeyDir)
 	out.Println("active kid:", snapshot.ActiveKID)
-	out.Println("signature v1 generated:", signatureV1 != "")
-	out.Println("signature v2 generated:", signatureV2 != "")
+	out.Println("signature v1:", signatureV1)
+	out.Println("signature v2:", signatureV2)
 	out.Println("verify v1:", okV1)
 	out.Println("verify v2:", okV2)
 	out.Println("wrong payload rejected:", !wrongPayloadOK)

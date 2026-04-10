@@ -31,13 +31,16 @@ func NewRedisNonceStore(client redis.Cmdable, prefix string, timeout time.Durati
 }
 
 // Use 尝试占用一个 nonce key，利用 Redis 保证分布式幂等.
-func (s *RedisNonceStore) Use(key string, expiresAt time.Time) (bool, error) {
+func (s *RedisNonceStore) Use(ctx context.Context, key string, expiresAt time.Time) (bool, error) {
 	ttl := time.Until(expiresAt)
 	if ttl <= 0 {
 		return false, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
 	return s.client.SetNX(ctx, s.prefixed(key), "1", ttl).Result()

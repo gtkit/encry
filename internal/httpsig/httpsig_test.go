@@ -1,6 +1,7 @@
 package httpsig
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -12,6 +13,8 @@ type stubVerifier struct {
 	calls int
 }
 
+type contextKey string
+
 func (v *stubVerifier) Verify(_ []byte, signed string) (bool, error) {
 	v.calls++
 	return signed == "kid.ok", nil
@@ -21,10 +24,12 @@ type recordingNonceStore struct {
 	calls int
 	keys  map[string]time.Time
 	now   func() time.Time
+	last  context.Context
 }
 
-func (s *recordingNonceStore) Use(key string, expiresAt time.Time) (bool, error) {
+func (s *recordingNonceStore) Use(ctx context.Context, key string, expiresAt time.Time) (bool, error) {
 	s.calls++
+	s.last = ctx
 	if s.keys == nil {
 		s.keys = make(map[string]time.Time)
 	}
@@ -56,18 +61,21 @@ func TestVerifyRequestDoesNotConsumeNonceOnInvalidSignature(t *testing.T) {
 		MaxBodyBytes: 1024,
 	}
 
-	err := VerifyRequest(verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
+	ctx := context.WithValue(context.Background(), contextKey("request-id"), "req-1")
+
+	err := VerifyRequest(ctx, verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
 	require.ErrorIs(t, err, ErrSignatureInvalid)
 	require.Equal(t, 1, verifier.calls)
 	require.Zero(t, store.calls)
 
 	headers.Signature = "kid.ok"
-	err = VerifyRequest(verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
+	err = VerifyRequest(ctx, verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
 	require.NoError(t, err)
 	require.Equal(t, 2, verifier.calls)
 	require.Equal(t, 1, store.calls)
+	require.Same(t, ctx, store.last)
 
-	err = VerifyRequest(verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
+	err = VerifyRequest(ctx, verifier, "POST", "/callbacks/order-paid", "", []byte(`{"ok":true}`), headers, opts)
 	require.ErrorIs(t, err, ErrReplayDetected)
 	require.Equal(t, 2, store.calls)
 }

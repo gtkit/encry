@@ -66,13 +66,16 @@ func NewRedisLuaNonceStore(client redis.Cmdable, prefix string, timeout time.Dur
 }
 
 // Use 通过 Lua 脚本原子完成 nonce 占用.
-func (s *RedisLuaNonceStore) Use(key string, expiresAt time.Time) (bool, error) {
+func (s *RedisLuaNonceStore) Use(ctx context.Context, key string, expiresAt time.Time) (bool, error) {
 	ttl := time.Until(expiresAt)
 	if ttl <= 0 {
 		return false, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
 	now := time.Now()

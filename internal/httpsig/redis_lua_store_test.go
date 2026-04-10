@@ -12,6 +12,7 @@ import (
 type fakeEvalClient struct {
 	nonceKeys map[string]time.Time
 	index     map[string]time.Time
+	lastCtx   context.Context
 }
 
 func newFakeEvalClient() *fakeEvalClient {
@@ -22,6 +23,7 @@ func newFakeEvalClient() *fakeEvalClient {
 }
 
 func (f *fakeEvalClient) Eval(ctx context.Context, _ string, keys []string, args ...any) *redis.Cmd {
+	f.lastCtx = ctx
 	nowMs, ok := args[0].(int64)
 	if !ok {
 		return redis.NewCmd(ctx)
@@ -44,6 +46,10 @@ func (f *fakeEvalClient) Eval(ctx context.Context, _ string, keys []string, args
 	}
 
 	cmd := redis.NewCmd(ctx)
+	if err := ctx.Err(); err != nil {
+		cmd.SetErr(err)
+		return cmd
+	}
 	nonceKey := keys[0]
 	if deadline, ok := f.nonceKeys[nonceKey]; ok && now.Before(deadline) {
 		cmd.SetVal(int64(0))
@@ -58,18 +64,39 @@ func (f *fakeEvalClient) Eval(ctx context.Context, _ string, keys []string, args
 }
 
 func TestRedisLuaNonceStoreUse(t *testing.T) {
+	client := newFakeEvalClient()
 	store := &RedisLuaNonceStore{
-		client:   newFakeEvalClient(),
+		client:   client,
 		prefix:   "nonce",
 		timeout:  time.Second,
 		indexKey: "nonce:index",
 	}
 
-	ok, err := store.Use("abc", time.Now().Add(time.Minute))
+	ok, err := store.Use(context.Background(), "abc", time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.True(t, ok)
+	require.NotNil(t, client.lastCtx)
 
-	ok, err = store.Use("abc", time.Now().Add(time.Minute))
+	ok, err = store.Use(context.Background(), "abc", time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.False(t, ok)
+}
+
+func TestRedisLuaNonceStoreUseHonorsParentContext(t *testing.T) {
+	client := newFakeEvalClient()
+	store := &RedisLuaNonceStore{
+		client:   client,
+		prefix:   "nonce",
+		timeout:  time.Second,
+		indexKey: "nonce:index",
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	ok, err := store.Use(ctx, "abc", time.Now().Add(time.Minute))
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, ok)
+	require.NotNil(t, client.lastCtx)
+	require.ErrorIs(t, client.lastCtx.Err(), context.Canceled)
 }

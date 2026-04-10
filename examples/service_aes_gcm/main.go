@@ -80,11 +80,12 @@ func run(out *log.Logger) error {
 		return err
 	}
 
+	out.Println("key dir:", cfg.KeyDir)
 	out.Println("active kid:", snapshot.ActiveKID)
-	out.Println("token v1 generated:", tokenV1 != "")
-	out.Println("token v2 generated:", tokenV2 != "")
-	out.Println("decrypt v1 ok:", len(plainV1) > 0)
-	out.Println("decrypt v2 ok:", len(plainV2) > 0)
+	out.Println("token v1:", tokenV1)
+	out.Println("token v2:", tokenV2)
+	out.Println("plain v1:", string(plainV1))
+	out.Println("plain v2:", string(plainV2))
 	out.Println("wrong aad rejected:", wrongAADErr != nil)
 	return nil
 }
