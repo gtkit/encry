@@ -13,7 +13,7 @@ func TestToBase64UsesStdEncoding(t *testing.T) {
 	key := []byte("signing-key")
 	data := []byte("payload")
 
-	sha1B64 := encryhmac.Sha1ToBase64(string(key), string(data))
+	sha1B64 := encryhmac.Sha1ToBase64(key, data)
 	sha256B64 := encryhmac.Sha256ToBase64(key, data)
 
 	decoded1, err := base64.StdEncoding.DecodeString(sha1B64)
@@ -37,6 +37,6 @@ func TestSha1VerifyAcceptsEncodedSignatures(t *testing.T) {
 	key := "signing-key"
 	data := "payload"
 
-	assert.True(t, encryhmac.Sha1Verify(key, data, encryhmac.Sha1ToHex(key, data)))
-	assert.True(t, encryhmac.Sha1Verify(key, data, encryhmac.Sha1ToBase64(key, data)))
+	assert.True(t, encryhmac.Sha1Verify(key, data, encryhmac.Sha1ToHex([]byte(key), []byte(data))))
+	assert.True(t, encryhmac.Sha1Verify(key, data, encryhmac.Sha1ToBase64([]byte(key), []byte(data))))
 }

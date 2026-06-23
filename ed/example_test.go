@@ -20,7 +20,11 @@ func ExampleGenerateKeyPair() {
 		panic(err)
 	}
 
-	out.Println(ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
+	ok, err := ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature)
+	if err != nil {
+		panic(err)
+	}
+	out.Println(ok)
 	// Output:
 	// true
 }

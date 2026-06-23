@@ -56,5 +56,5 @@ func (s *ManagedEd25519Service) Verify(payload []byte, signed string) (bool, err
 	if err != nil {
 		return false, err
 	}
-	return ed.VerifyBase64(record.Key.Public, payload, signature), nil
+	return ed.VerifyBase64(record.Key.Public, payload, signature)
 }

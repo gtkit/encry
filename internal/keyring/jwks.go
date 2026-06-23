@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	json "github.com/gtkit/json"
+	json "github.com/gtkit/json/v2"
 )
 
 // JWKSet 是一个精简的 JWKS-like 公钥发布结构.

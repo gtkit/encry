@@ -100,6 +100,6 @@ func MapSign(signStr, appSecret string) string {
 
 	returnStr := buf.String()
 
-	s := md5.New(returnStr)
+	s := md5.String(returnStr)
 	return strings.ToUpper(s)
 }

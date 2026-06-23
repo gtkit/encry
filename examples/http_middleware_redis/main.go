@@ -16,7 +16,7 @@ import (
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/middleware"
 	"github.com/gtkit/encry/internal/signer"
-	json "github.com/gtkit/json"
+	json "github.com/gtkit/json/v2"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -36,7 +36,7 @@ func Sign(msg string) (string, string) {
 // Verify 保留兼容旧接口：使用原始字节字符串验签.
 //
 // Deprecated: 原始字符串接口易因编码/长度问题误用，请改用 VerifyBytes/VerifyBase64。
-func Verify(publicKey, msg, signature string) bool {
+func Verify(publicKey, msg, signature string) (bool, error) {
 	return VerifyBytes(ed25519.PublicKey(publicKey), []byte(msg), []byte(signature))
 }
 
@@ -198,19 +198,20 @@ func SignBase64(privateKey ed25519.PrivateKey, msg []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-// VerifyBytes 使用 Ed25519 公钥验证签名.
-func VerifyBytes(publicKey ed25519.PublicKey, msg, signature []byte) bool {
+// VerifyBytes 使用 Ed25519 公钥验证签名，返回 (是否有效, 操作性错误).
+// 公钥长度非法时返回 (false, ErrInvalidPublicKey).
+func VerifyBytes(publicKey ed25519.PublicKey, msg, signature []byte) (bool, error) {
 	if len(publicKey) != ed25519.PublicKeySize {
-		return false
+		return false, ErrInvalidPublicKey
 	}
-	return ed25519.Verify(publicKey, msg, signature)
+	return ed25519.Verify(publicKey, msg, signature), nil
 }
 
-// VerifyBase64 使用 Ed25519 公钥验证 Base64 编码签名.
-func VerifyBase64(publicKey ed25519.PublicKey, msg []byte, signature string) bool {
+// VerifyBase64 使用 Ed25519 公钥验证 Base64 编码签名，返回 (是否有效, 操作性错误).
+func VerifyBase64(publicKey ed25519.PublicKey, msg []byte, signature string) (bool, error) {
 	raw, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
-		return false
+		return false, err
 	}
 	return VerifyBytes(publicKey, msg, raw)
 }
@@ -239,7 +240,7 @@ func VerifyFile(msg []byte, publicPath string, signature []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return VerifyBytes(publicKey, msg, signature), nil
+	return VerifyBytes(publicKey, msg, signature)
 }
 
 // VerifyFileBase64 使用 PEM 公钥文件验证 Base64 编码签名.
@@ -248,7 +249,7 @@ func VerifyFileBase64(msg []byte, publicPath, signature string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return VerifyBase64(publicKey, msg, signature), nil
+	return VerifyBase64(publicKey, msg, signature)
 }
 
 func writePEMFile(path string, data []byte, perm os.FileMode) error {

@@ -74,6 +74,5 @@ func (s *ManagedRSAPSSService) VerifyWith(payload []byte, signed string, hash cr
 		return false, err
 	}
 
-	err = encryrsa.VerifyPSSWithPublicKey(record.Key.Public, payload, signature, hash, opts)
-	return err == nil, nil
+	return encryrsa.VerifyPSSWithPublicKey(record.Key.Public, payload, signature, hash, opts)
 }

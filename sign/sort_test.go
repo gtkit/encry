@@ -201,7 +201,7 @@ func TestMapSign(t *testing.T) {
 			got := sign.MapSign(tt.signStr, tt.appSecret)
 
 			// 与 MD5(secret+signStr+secret) 大写一致.
-			want := md5.New(tt.appSecret + tt.signStr + tt.appSecret)
+			want := md5.String(tt.appSecret + tt.signStr + tt.appSecret)
 			want = upper(want)
 			require.Equal(t, want, got)
 			require.Len(t, got, 32)

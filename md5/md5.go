@@ -9,11 +9,6 @@ import (
 	"strings"
 )
 
-// New 返回一个 32 位 MD5 十六进制字符串，保留兼容旧接口.
-func New(str string) string {
-	return String(str)
-}
-
 // Sum 计算 MD5 摘要，兼容旧协议使用场景.
 func Sum(data []byte) [stdmd5.Size]byte {
 	return stdmd5.Sum(data) // #nosec G401 -- legacy compatibility package intentionally exposes MD5 helpers.

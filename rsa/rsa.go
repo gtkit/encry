@@ -1,6 +1,7 @@
 package rsa
 
 import (
+	"context"
 	"crypto/rand"
 	stdrsa "crypto/rsa"
 	"crypto/x509"
@@ -23,6 +24,18 @@ func GetKey(filePath string) (*pem.Block, error) {
 	return readPEMFile(filePath)
 }
 
+// mapVerify 将底层验签 error 映射为 (是否有效, 操作性错误)：
+// nil→(true,nil)；签名不匹配(ErrVerification)→(false,nil)；其它→(false,err).
+func mapVerify(err error) (bool, error) {
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, stdrsa.ErrVerification) {
+		return false, nil
+	}
+	return false, err
+}
+
 // Error 保留旧的错误格式化接口，避免破坏兼容性.
 func Error(file string, line int, err string) error {
 	return fmt.Errorf("file:%s line:%d error:%s", file, line, err)
@@ -35,6 +48,32 @@ func GenerateKeyPair(keySize int) (*stdrsa.PrivateKey, *stdrsa.PublicKey, error)
 		return nil, nil, err
 	}
 	return privateKey, &privateKey.PublicKey, nil
+}
+
+// GenerateKeyPairContext 生成 RSA 密钥对，并在 ctx 取消/超时时提前返回 ctx.Err()。
+//
+// 注意：底层 crypto/rsa.GenerateKey 不可中断，ctx 取消只让本函数提前返回，
+// 后台 goroutine 仍会把当前这次生成跑完（无法真正终止）。
+func GenerateKeyPairContext(ctx context.Context, keySize int) (*stdrsa.PrivateKey, *stdrsa.PublicKey, error) {
+	type result struct {
+		priv *stdrsa.PrivateKey
+		err  error
+	}
+	ch := make(chan result, 1) // 带缓冲，确保 goroutine 不泄漏
+	go func() {
+		priv, err := stdrsa.GenerateKey(rand.Reader, keySize)
+		ch <- result{priv: priv, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case r := <-ch:
+		if r.err != nil {
+			return nil, nil, r.err
+		}
+		return r.priv, &r.priv.PublicKey, nil
+	}
 }
 
 // GeneratePKCS1KeyPEM 生成 PKCS#1 PEM 格式密钥对.

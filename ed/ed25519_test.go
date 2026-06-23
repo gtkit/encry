@@ -29,6 +29,12 @@ func TestEd25519Base64Signature(t *testing.T) {
 
 	signature, err := ed.SignBase64(privateKey, []byte("hello-ed25519"))
 	require.NoError(t, err)
-	require.True(t, ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature))
-	require.False(t, ed.VerifyBase64(publicKey, []byte("wrong"), signature))
+
+	ok, err := ed.VerifyBase64(publicKey, []byte("hello-ed25519"), signature)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	bad, err := ed.VerifyBase64(publicKey, []byte("wrong"), signature)
+	require.NoError(t, err)
+	require.False(t, bad)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/gtkit/encry/examples/internal/cryptoenv"
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/sealer"
-	json "github.com/gtkit/json"
+	json "github.com/gtkit/json/v2"
 )
 
 func main() {

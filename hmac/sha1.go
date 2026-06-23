@@ -17,13 +17,13 @@ func Sha1(key, value []byte) []byte {
 }
 
 // Sha1ToHex 将加密后的二进制转16进制字符串.
-func Sha1ToHex(key string, data string) string {
-	return hex.EncodeToString(Sha1([]byte(key), []byte(data)))
+func Sha1ToHex(key, data []byte) string {
+	return hex.EncodeToString(Sha1(key, data))
 }
 
 // Sha1ToBase64 将加密后的二进制转Base64字符串.
-func Sha1ToBase64(key string, data string) string {
-	return base64.StdEncoding.EncodeToString(Sha1([]byte(key), []byte(data)))
+func Sha1ToBase64(key, data []byte) string {
+	return base64.StdEncoding.EncodeToString(Sha1(key, data))
 }
 
 // Sha1Verify 验证HmacSha1.

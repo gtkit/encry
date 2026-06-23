@@ -9,13 +9,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRC4ErrorPaths(t *testing.T) {
+	// 空 key 会让底层 NewCipher 报错，覆盖各函数的错误分支。
+	_, err := rc4.Apply("", []byte("data"))
+	require.Error(t, err)
+
+	require.Error(t, rc4.ApplyInPlace("", []byte("data")))
+
+	_, err = rc4.EncryptToBase64("", []byte("data"))
+	require.Error(t, err)
+
+	_, err = rc4.EncryptStringToBase64("", "data")
+	require.Error(t, err)
+
+	// 非法 Base64 触发 DecryptFromBase64 的解码错误分支。
+	_, err = rc4.DecryptFromBase64("key", "%%%not-base64%%%")
+	require.Error(t, err)
+
+	_, err = rc4.DecryptBase64ToString("key", "%%%not-base64%%%")
+	require.Error(t, err)
+}
+
 func TestRc4(t *testing.T) {
 	key := "officeaddin"
 	str := "xiaozhaofu"
 	// 加密
-	s1, _ := rc4.New(key, []byte(str))
+	s1, _ := rc4.Apply(key, []byte(str))
 	// 解密
-	s2, _ := rc4.New(key, s1)
+	s2, _ := rc4.Apply(key, s1)
 	t.Log("s2 string----", str)
 	assert.Equal(t, str, string(s2))
 }
@@ -25,7 +46,7 @@ func TestRC4DoesNotMutateInput(t *testing.T) {
 	src := []byte("xiaozhaofu")
 	original := append([]byte(nil), src...)
 
-	encrypted, err := rc4.Encrypt(key, src)
+	encrypted, err := rc4.Apply(key, src)
 	require.NoError(t, err)
 
 	assert.Equal(t, original, src)

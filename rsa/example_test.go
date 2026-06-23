@@ -52,8 +52,11 @@ func ExampleSignPSSBase64() {
 		panic(err)
 	}
 
-	err = rsa.VerifyPSSBase64([]byte("hello-pss"), filepath.Join(dir, "public.pem"), signature)
-	out.Println(err == nil)
+	ok, err := rsa.VerifyPSSBase64([]byte("hello-pss"), filepath.Join(dir, "public.pem"), signature)
+	if err != nil {
+		panic(err)
+	}
+	out.Println(ok)
 	// Output:
 	// true
 }

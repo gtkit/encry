@@ -20,15 +20,15 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 		{
 			name:   "std empty",
 			input:  []byte(""),
-			encode: encrybase64.Encode,
-			decode: encrybase64.Decode,
+			encode: encrybase64.StdEncode,
+			decode: encrybase64.StdDecode,
 			want:   "",
 		},
 		{
 			name:   "std hello",
 			input:  []byte("hello"),
-			encode: encrybase64.Encode,
-			decode: encrybase64.Decode,
+			encode: encrybase64.StdEncode,
+			decode: encrybase64.StdDecode,
 			want:   "aGVsbG8=",
 		},
 		{
@@ -83,7 +83,7 @@ func TestDecodeErrors(t *testing.T) {
 		input  string
 		decode func(string) ([]byte, error)
 	}{
-		{"std illegal char", "****", encrybase64.Decode},
+		{"std illegal char", "****", encrybase64.StdDecode},
 		{"std alias illegal char", "****", encrybase64.StdDecode},
 		{"std wrong padding", "aGVsbG8", encrybase64.StdDecode},
 		{"url illegal char", "++++", encrybase64.URLDecode},

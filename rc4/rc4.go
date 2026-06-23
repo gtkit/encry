@@ -5,12 +5,8 @@ import (
 	"encoding/base64"
 )
 
-// New 保留兼容旧接口，返回一个新的加解密结果，不会原地修改传入切片.
-func New(key string, str []byte) ([]byte, error) {
-	return Apply(key, str)
-}
-
 // Apply 使用 RC4 对输入执行一次流变换，返回新的结果切片.
+// RC4 是对称流密码，加密与解密是同一操作，统一用 Apply。
 func Apply(key string, src []byte) ([]byte, error) {
 	dst := append([]byte(nil), src...)
 	if err := ApplyInPlace(key, dst); err != nil {
@@ -29,19 +25,9 @@ func ApplyInPlace(key string, buf []byte) error {
 	return nil
 }
 
-// Encrypt 是 Apply 的语义化别名.
-func Encrypt(key string, plainText []byte) ([]byte, error) {
-	return Apply(key, plainText)
-}
-
-// Decrypt 是 Apply 的语义化别名.
-func Decrypt(key string, cipherText []byte) ([]byte, error) {
-	return Apply(key, cipherText)
-}
-
 // EncryptToBase64 使用 RC4 加密并编码为 Base64.
 func EncryptToBase64(key string, plainText []byte) (string, error) {
-	cipherText, err := Encrypt(key, plainText)
+	cipherText, err := Apply(key, plainText)
 	if err != nil {
 		return "", err
 	}
@@ -54,7 +40,7 @@ func DecryptFromBase64(key, cipherText string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Decrypt(key, raw)
+	return Apply(key, raw)
 }
 
 // EncryptStringToBase64 使用 RC4 加密字符串并编码为 Base64.

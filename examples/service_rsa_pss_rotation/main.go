@@ -12,7 +12,7 @@ import (
 	"github.com/gtkit/encry/internal/keyring"
 	"github.com/gtkit/encry/internal/signer"
 	encryrsa "github.com/gtkit/encry/rsa"
-	json "github.com/gtkit/json"
+	json "github.com/gtkit/json/v2"
 )
 
 func main() {

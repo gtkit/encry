@@ -51,5 +51,5 @@ func (s *Ed25519Service) Verify(payload []byte, signed string) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("unknown kid %q", kid)
 	}
-	return ed.VerifyBase64(keyPair.Public, payload, signature), nil
+	return ed.VerifyBase64(keyPair.Public, payload, signature)
 }

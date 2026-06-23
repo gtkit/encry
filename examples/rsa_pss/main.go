@@ -37,11 +37,12 @@ func run(out *log.Logger) error {
 		return err
 	}
 
-	if err := rsa.VerifyPSSBase64([]byte("hello-pss"), publicKeyPath, signature); err != nil {
+	ok, err := rsa.VerifyPSSBase64([]byte("hello-pss"), publicKeyPath, signature)
+	if err != nil {
 		return err
 	}
 
 	out.Println("signature:", signature)
-	out.Println("verify:", true)
+	out.Println("verify:", ok)
 	return nil
 }

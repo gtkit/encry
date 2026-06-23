@@ -18,7 +18,7 @@ func TestSHA1Forms(t *testing.T) {
 
 	data := []byte("hello")
 
-	require.Equal(t, helloHexSHA1, encrysha1.New("hello"))
+	require.Equal(t, helloHexSHA1, encrysha1.String("hello"))
 	require.Equal(t, helloHexSHA1, encrysha1.String("hello"))
 	require.Equal(t, helloHexSHA1, encrysha1.Hex(data))
 

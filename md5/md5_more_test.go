@@ -18,7 +18,7 @@ func TestMD5Forms(t *testing.T) {
 
 	data := []byte("hello")
 
-	require.Equal(t, helloHexMD5, encrymd5.New("hello"))
+	require.Equal(t, helloHexMD5, encrymd5.String("hello"))
 	require.Equal(t, helloHexMD5, encrymd5.String("hello"))
 	require.Equal(t, helloHexMD5, encrymd5.Hex(data))
 

@@ -13,25 +13,9 @@ RawStdEncoding	常规编码，末尾不补 =
 RawURLEncoding	URL safe 编码，末尾不补 =
 */
 
-// Encode @Title Encode.
-// @Description Base64 标准编码（注意：Base64 只是编码，不是加密）.
-// @Param data.
-// @Return string.
-func Encode(data []byte) string {
-	return base64.StdEncoding.EncodeToString(data)
-}
-
-// StdEncode 常规编码.
+// StdEncode 常规编码（注意：Base64 只是编码，不是加密）.
 func StdEncode(data []byte) string {
 	return base64.StdEncoding.EncodeToString(data)
-}
-
-// Decode @Title Decode.
-// @Description Base64 标准解码（注意：Base64 只是编码，不是加密）.
-// @Param data.
-// @Return string.
-func Decode(data string) (str []byte, err error) {
-	return base64.StdEncoding.DecodeString(data)
 }
 
 // StdDecode 常规编码.

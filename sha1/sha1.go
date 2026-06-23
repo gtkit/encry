@@ -9,11 +9,6 @@ import (
 	"strings"
 )
 
-// New 返回一个 40 位 SHA1 十六进制字符串，兼容旧协议使用场景.
-func New(str string) string {
-	return String(str)
-}
-
 // Sum 计算 SHA1 摘要.
 func Sum(data []byte) [stdsha1.Size]byte {
 	return stdsha1.Sum(data) // #nosec G401 -- legacy compatibility package intentionally exposes SHA1 helpers.

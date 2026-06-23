@@ -33,11 +33,22 @@ go get github.com/gtkit/encry
 | `sha256` | `SHA224`、`SHA256`、`SHA384`、`SHA512` | 摘要、文件摘要、摘要校验 |
 | `rsa` | `PKCS#1 v1.5`、`OAEP`、`PSS` | 兼容旧协议与现代 RSA 场景 |
 | `ed` | `Ed25519` | 密钥生成、PEM、签名验签 |
+| `ecdsa` | `ECDSA` | P-256/384 签名验签、PEM |
 | `hmac` | `HMAC-SHA1`、`HMAC-SHA256` | 消息认证 |
 | `hash` | `bcrypt`、`argon2`、`fnv` | 密码哈希与辅助散列 |
+| `chacha` | `XChaCha20-Poly1305` | 现代 AEAD，无 AES-NI 依赖 |
+| `stream` | `XChaCha20-Poly1305` STREAM | 大文件流式 AEAD（io.Reader/Writer，抗截断/重排） |
+| `ecdh` | `X25519`、`NIST ECDH` | 密钥协商 |
+| `hkdf` | `HKDF` | 密钥派生（RFC5869） |
+| `hpke` | `HPKE`（RFC9180） | 混合公钥加密，加密到公钥 |
+| `mlkem` | `ML-KEM-768` | 后量子密钥封装（FIPS 203） |
 | `md5` | `MD5` | 兼容旧系统 |
 | `sha1` | `SHA1` | 兼容旧系统 |
 | `rc4` | `RC4` | 兼容旧系统 |
+
+> 现代原语（`chacha`/`ecdh`/`ecdsa`/`hkdf`/`hpke`/`mlkem`）基于 go1.26 标准库（`hpke` 为 1.26 新增）。
+> 需要"加密一段数据发给某公钥持有者"时，优先用 `hpke`（无 RSA 的明文长度限制）；
+> 需要双方协商对称密钥用 `ecdh` + `hkdf`；面向后量子用 `mlkem`。
 
 ## 推荐用法
 
@@ -244,6 +255,12 @@ go run ./examples/service_rsa_pss_rotation
 ```
 
 示例说明见 [examples/README.md](/Users/xiaozhaofu/go/src/encry/examples/README.md)。
+
+> ⚠️ 关于密钥轮转 / 请求签名中间件 / JWKS 类示例（`jwks_publish`、`http_middleware*`、`gin_middleware`、`service_*`）：
+> 它们演示的是仓库内部 `internal/`（keyring、httpsig、sealer、signer、middleware）的能力。
+> 按 Go 的 internal 规则，**这些包仅供本模块内部使用，外部项目无法 `import`**。
+> 这些示例是面向本仓维护者的参考实现，不属于对外公开 API；外部使用者请使用顶层公开包
+> （`aes`、`rsa`、`ed`、`ecdsa`、`hpke`、`mlkem`、`chacha`、`ecdh`、`hkdf`、`hmac`、`hash`、`sha256` 等）。
 
 ## 构建边界
 

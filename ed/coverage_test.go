@@ -38,7 +38,8 @@ func TestSignVerifyLegacy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			require.Equal(t, tt.want, ed.Verify(tt.pub, tt.msg, tt.sig))
+			got, _ := ed.Verify(tt.pub, tt.msg, tt.sig)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -269,11 +270,11 @@ func TestVerifyBytesAndBase64(t *testing.T) {
 		fn   func() bool
 		want bool
 	}{
-		{name: "verify bytes ok", fn: func() bool { return ed.VerifyBytes(pub, []byte("msg"), sig) }, want: true},
-		{name: "verify bytes bad pub len", fn: func() bool { return ed.VerifyBytes(ed25519.PublicKey{1}, []byte("msg"), sig) }, want: false},
-		{name: "verify base64 ok", fn: func() bool { return ed.VerifyBase64(pub, []byte("msg"), sigB64) }, want: true},
-		{name: "verify base64 invalid encoding", fn: func() bool { return ed.VerifyBase64(pub, []byte("msg"), "%%%") }, want: false},
-		{name: "verify base64 wrong msg", fn: func() bool { return ed.VerifyBase64(pub, []byte("other"), sigB64) }, want: false},
+		{name: "verify bytes ok", fn: func() bool { ok, _ := ed.VerifyBytes(pub, []byte("msg"), sig); return ok }, want: true},
+		{name: "verify bytes bad pub len", fn: func() bool { ok, _ := ed.VerifyBytes(ed25519.PublicKey{1}, []byte("msg"), sig); return ok }, want: false},
+		{name: "verify base64 ok", fn: func() bool { ok, _ := ed.VerifyBase64(pub, []byte("msg"), sigB64); return ok }, want: true},
+		{name: "verify base64 invalid encoding", fn: func() bool { ok, _ := ed.VerifyBase64(pub, []byte("msg"), "%%%"); return ok }, want: false},
+		{name: "verify base64 wrong msg", fn: func() bool { ok, _ := ed.VerifyBase64(pub, []byte("other"), sigB64); return ok }, want: false},
 	}
 
 	for _, tt := range tests {
@@ -371,5 +372,7 @@ func TestGenerateKeyPEM(t *testing.T) {
 
 	sig, err := ed.SignBytes(priv, []byte("roundtrip"))
 	require.NoError(t, err)
-	require.True(t, ed.VerifyBytes(pub, []byte("roundtrip"), sig))
+	ok, err := ed.VerifyBytes(pub, []byte("roundtrip"), sig)
+	require.NoError(t, err)
+	require.True(t, ok)
 }

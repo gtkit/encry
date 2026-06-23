@@ -1,6 +1,7 @@
 package rsa_test
 
 import (
+	"context"
 	"crypto"
 	stdrsa "crypto/rsa"
 	"crypto/x509"
@@ -13,6 +14,26 @@ import (
 	"github.com/gtkit/encry/rsa"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGenerateKeyPairContext(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		priv, pub, err := rsa.GenerateKeyPairContext(context.Background(), 2048)
+		require.NoError(t, err)
+		require.NotNil(t, priv)
+		require.NotNil(t, pub)
+	})
+
+	t.Run("canceled", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, _, err := rsa.GenerateKeyPairContext(ctx, 4096)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+}
 
 // keyFiles 在临时目录生成 PKCS#1 PEM 密钥对，返回私钥/公钥文件路径与解析后的密钥。
 func keyFiles(t *testing.T) (priPath, pubPath string, priv *stdrsa.PrivateKey, pub *stdrsa.PublicKey) {
@@ -350,8 +371,14 @@ func TestPSSDeprecatedWrappers(t *testing.T) {
 
 	sig, err := rsa.SignPSS(plain, pri)
 	require.NoError(t, err)
-	require.NoError(t, rsa.VerifyPSS(plain, pub, sig))
-	require.Error(t, rsa.VerifyPSS([]byte("other"), pub, sig))
+
+	ok, err := rsa.VerifyPSS(plain, pub, sig)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	bad, err := rsa.VerifyPSS([]byte("other"), pub, sig)
+	require.NoError(t, err)
+	require.False(t, bad)
 }
 
 func TestPSSKeyErrors(t *testing.T) {
@@ -370,12 +397,12 @@ func TestPSSKeyErrors(t *testing.T) {
 	})
 	t.Run("verify nil key", func(t *testing.T) {
 		t.Parallel()
-		err := rsa.VerifyPSSWithPublicKey(nil, []byte("x"), []byte("sig"), crypto.SHA256, nil)
+		_, err := rsa.VerifyPSSWithPublicKey(nil, []byte("x"), []byte("sig"), crypto.SHA256, nil)
 		require.ErrorIs(t, err, rsa.ErrInvalidPublicKey)
 	})
 	t.Run("verify unsupported hash", func(t *testing.T) {
 		t.Parallel()
-		err := rsa.VerifyPSSWithPublicKey(pub, []byte("x"), []byte("sig"), crypto.Hash(99), nil)
+		_, err := rsa.VerifyPSSWithPublicKey(pub, []byte("x"), []byte("sig"), crypto.Hash(99), nil)
 		require.Error(t, err)
 	})
 }
@@ -383,232 +410,6 @@ func TestPSSKeyErrors(t *testing.T) {
 func TestPSSBase64DecodeError(t *testing.T) {
 	t.Parallel()
 	_, pub, _, _ := keyFiles(t)
-	err := rsa.VerifyPSSBase64(([]byte("x")), pub, "%%%not-base64%%%")
+	_, err := rsa.VerifyPSSBase64(([]byte("x")), pub, "%%%not-base64%%%")
 	require.Error(t, err)
-}
-
-func TestPKCS1v15KeyErrors(t *testing.T) {
-	t.Parallel()
-	_, _, priv, pub := keyFiles(t)
-
-	t.Run("encrypt nil key", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.EncryptPKCS1v15(nil, []byte("x"))
-		require.ErrorIs(t, err, rsa.ErrInvalidPublicKey)
-	})
-	t.Run("encrypt too long", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.EncryptPKCS1v15(pub, make([]byte, 1000))
-		require.Error(t, err)
-	})
-	t.Run("decrypt nil key", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.DecryptPKCS1v15(nil, []byte("x"))
-		require.ErrorIs(t, err, rsa.ErrInvalidPrivateKey)
-	})
-	t.Run("decrypt empty", func(t *testing.T) {
-		t.Parallel()
-		got, err := rsa.DecryptPKCS1v15(priv, nil)
-		require.NoError(t, err)
-		require.Empty(t, got)
-	})
-	t.Run("decrypt too long", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.DecryptPKCS1v15(priv, make([]byte, priv.Size()+1))
-		require.ErrorIs(t, err, rsa.ErrCipherTextTooLong)
-	})
-	t.Run("decrypt wrong size", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.DecryptPKCS1v15(priv, make([]byte, priv.Size()-1))
-		require.Error(t, err)
-	})
-}
-
-func TestPKCS1v15ChunkedKeyErrors(t *testing.T) {
-	t.Parallel()
-	_, _, priv, pub := keyFiles(t)
-
-	t.Run("encrypt nil key", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.EncryptPKCS1v15Chunked(nil, []byte("x"))
-		require.ErrorIs(t, err, rsa.ErrInvalidPublicKey)
-	})
-	t.Run("encrypt empty", func(t *testing.T) {
-		t.Parallel()
-		got, err := rsa.EncryptPKCS1v15Chunked(pub, nil)
-		require.NoError(t, err)
-		require.Empty(t, got)
-	})
-	t.Run("decrypt nil key", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.DecryptPKCS1v15Chunked(nil, []byte("x"))
-		require.ErrorIs(t, err, rsa.ErrInvalidPrivateKey)
-	})
-	t.Run("decrypt empty", func(t *testing.T) {
-		t.Parallel()
-		got, err := rsa.DecryptPKCS1v15Chunked(priv, nil)
-		require.NoError(t, err)
-		require.Empty(t, got)
-	})
-	t.Run("decrypt misaligned", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.DecryptPKCS1v15Chunked(priv, make([]byte, priv.Size()+1))
-		require.Error(t, err)
-	})
-}
-
-func TestPKCS1v15Base64DecodeErrors(t *testing.T) {
-	t.Parallel()
-	_, _, priv, _ := keyFiles(t)
-
-	_, err := rsa.DecryptPKCS1v15Base64(priv, "%%%not-base64%%%")
-	require.Error(t, err)
-	_, err = rsa.DecryptPKCS1v15ChunkedBase64(priv, "%%%not-base64%%%")
-	require.Error(t, err)
-}
-
-func TestPKCS1DeprecatedBlockBytes(t *testing.T) {
-	t.Parallel()
-	pri, pub, _, _ := keyFiles(t)
-	plain := []byte(strings.Repeat("block-", 100))
-
-	cipherBytes, err := rsa.EncryptBlockBytes(plain, pub)
-	require.NoError(t, err)
-	decrypted, err := rsa.DecryptBlock(cipherBytes, pri)
-	require.NoError(t, err)
-	require.Equal(t, plain, decrypted)
-}
-
-func TestPKCS1DeprecatedFileErrors(t *testing.T) {
-	t.Parallel()
-	missing := filepath.Join(t.TempDir(), "nope.pem")
-
-	tests := []struct {
-		name string
-		fn   func() error
-	}{
-		{name: "Encrypt", fn: func() error { _, err := rsa.Encrypt([]byte("x"), missing); return err }},
-		{name: "EncryptToBase64", fn: func() error { _, err := rsa.EncryptToBase64([]byte("x"), missing); return err }},
-		{name: "Decrypt", fn: func() error { _, err := rsa.Decrypt([]byte("x"), missing); return err }},
-		{name: "DecryptBase64", fn: func() error { _, err := rsa.DecryptBase64("eA==", missing); return err }},
-		{name: "EncryptBlock", fn: func() error { _, err := rsa.EncryptBlock([]byte("x"), missing); return err }},
-		{name: "EncryptBlockBytes", fn: func() error { _, err := rsa.EncryptBlockBytes([]byte("x"), missing); return err }},
-		{name: "DecryptBlock", fn: func() error { _, err := rsa.DecryptBlock([]byte("x"), missing); return err }},
-		{name: "DecryptBlockBase64", fn: func() error { _, err := rsa.DecryptBlockBase64("eA==", missing); return err }},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			require.Error(t, tt.fn())
-		})
-	}
-}
-
-func TestSignLegacyHashHelpers(t *testing.T) {
-	t.Parallel()
-	pri, pub, _, _ := keyFiles(t)
-	plain := []byte("legacy-sign")
-
-	t.Run("SignSHA256/VerifySHA256", func(t *testing.T) {
-		t.Parallel()
-		sig, err := rsa.SignSHA256(plain, pri)
-		require.NoError(t, err)
-		require.NoError(t, rsa.VerifySHA256(plain, pub, sig))
-	})
-	t.Run("SignSHA512Base64/VerifySHA512Base64", func(t *testing.T) {
-		t.Parallel()
-		sig, err := rsa.SignSHA512Base64(plain, pri)
-		require.NoError(t, err)
-		require.NoError(t, rsa.VerifySHA512Base64(plain, pub, sig))
-	})
-	t.Run("SignSHA1/VerifySHA1", func(t *testing.T) {
-		t.Parallel()
-		sig, err := rsa.SignSHA1(plain, pri)
-		require.NoError(t, err)
-		require.NoError(t, rsa.VerifySHA1(plain, pub, sig))
-	})
-	t.Run("SignMD5/VerifyMD5Bytes", func(t *testing.T) {
-		t.Parallel()
-		sig, err := rsa.SignMD5(plain, pri)
-		require.NoError(t, err)
-		require.NoError(t, rsa.VerifyMD5Bytes(plain, pub, sig))
-	})
-	t.Run("SignMD5Base64/VerifyMD5", func(t *testing.T) {
-		t.Parallel()
-		sig, err := rsa.SignMD5Base64(plain, pri)
-		require.NoError(t, err)
-		require.NoError(t, rsa.VerifyMD5(string(plain), sig, pub))
-	})
-}
-
-func TestSignPKCS1v15KeyErrors(t *testing.T) {
-	t.Parallel()
-	_, _, priv, pub := keyFiles(t)
-
-	t.Run("sign nil key", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.SignPKCS1v15(nil, []byte("x"), crypto.SHA256)
-		require.ErrorIs(t, err, rsa.ErrInvalidPrivateKey)
-	})
-	t.Run("sign unsupported hash", func(t *testing.T) {
-		t.Parallel()
-		_, err := rsa.SignPKCS1v15(priv, []byte("x"), crypto.Hash(99))
-		require.ErrorIs(t, err, rsa.ErrUnsupportedHash)
-	})
-	t.Run("verify nil key", func(t *testing.T) {
-		t.Parallel()
-		err := rsa.VerifyPKCS1v15(nil, []byte("x"), []byte("sig"), crypto.SHA256)
-		require.ErrorIs(t, err, rsa.ErrInvalidPublicKey)
-	})
-	t.Run("verify unsupported hash", func(t *testing.T) {
-		t.Parallel()
-		err := rsa.VerifyPKCS1v15(pub, []byte("x"), []byte("sig"), crypto.Hash(99))
-		require.ErrorIs(t, err, rsa.ErrUnsupportedHash)
-	})
-}
-
-func TestSignPKCS1v15Base64DecodeError(t *testing.T) {
-	t.Parallel()
-	_, _, _, pub := keyFiles(t)
-	err := rsa.VerifyPKCS1v15Base64(pub, []byte("x"), "%%%not-base64%%%", crypto.SHA256)
-	require.Error(t, err)
-}
-
-func TestSignCS8MD5Error(t *testing.T) {
-	t.Parallel()
-	missing := filepath.Join(t.TempDir(), "nope.pem")
-	_, err := rsa.SignCS8MD5("msg", missing)
-	require.Error(t, err)
-}
-
-func TestSignFileLevelErrors(t *testing.T) {
-	t.Parallel()
-	missing := filepath.Join(t.TempDir(), "nope.pem")
-
-	tests := []struct {
-		name string
-		fn   func() error
-	}{
-		{name: "Sign", fn: func() error { _, err := rsa.Sign([]byte("x"), missing); return err }},
-		{name: "Verify", fn: func() error { return rsa.Verify([]byte("x"), missing, []byte("sig")) }},
-		{name: "SignBase64WithHash", fn: func() error {
-			_, err := rsa.SignBase64WithHash([]byte("x"), missing, crypto.SHA256)
-			return err
-		}},
-		{name: "VerifyBase64WithHash", fn: func() error {
-			return rsa.VerifyBase64WithHash([]byte("x"), missing, "c2ln", crypto.SHA256)
-		}},
-		{name: "SignSHA256Base64", fn: func() error { _, err := rsa.SignSHA256Base64([]byte("x"), missing); return err }},
-		{name: "VerifySHA256Base64", fn: func() error { return rsa.VerifySHA256Base64([]byte("x"), missing, "c2ln") }},
-		{name: "SignPSSBase64", fn: func() error { _, err := rsa.SignPSSBase64([]byte("x"), missing); return err }},
-		{name: "EncryptOAEPBase64", fn: func() error { _, err := rsa.EncryptOAEPBase64([]byte("x"), missing); return err }},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			require.Error(t, tt.fn())
-		})
-	}
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gtkit/encry/ed"
 	encryrsa "github.com/gtkit/encry/rsa"
-	json "github.com/gtkit/json"
+	json "github.com/gtkit/json/v2"
 )
 
 // LoadStringKeyRecords 加载带 sidecar metadata 的字符串密钥文件.

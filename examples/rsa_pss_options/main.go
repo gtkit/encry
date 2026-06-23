@@ -43,14 +43,15 @@ func run(out *log.Logger) error {
 		return err
 	}
 
-	if err := encryrsa.VerifyPSSBase64WithOptions([]byte("settlement-report"), publicKeyPath, signature, crypto.SHA512, opts); err != nil {
+	ok, err := encryrsa.VerifyPSSBase64WithOptions([]byte("settlement-report"), publicKeyPath, signature, crypto.SHA512, opts)
+	if err != nil {
 		return err
 	}
 
-	verifyErr := encryrsa.VerifyPSSBase64WithOptions([]byte("settlement-report"), publicKeyPath, signature, crypto.SHA256, nil)
+	wrongOK, _ := encryrsa.VerifyPSSBase64WithOptions([]byte("settlement-report"), publicKeyPath, signature, crypto.SHA256, nil)
 
 	out.Println("signature:", signature)
-	out.Println("verify:", true)
-	out.Println("wrong options rejected:", verifyErr != nil)
+	out.Println("verify:", ok)
+	out.Println("wrong options rejected:", !wrongOK)
 	return nil
 }
