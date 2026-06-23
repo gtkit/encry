@@ -21,7 +21,7 @@ func TestEd25519PublicJWKSet(t *testing.T) {
 
 	snapshot := &Snapshot[Record[Ed25519KeyPair]]{
 		ActiveKID: "k1",
-		Keys: map[string]Record[Ed25519KeyPair]{
+		keys: map[string]Record[Ed25519KeyPair]{
 			"k1": {
 				Key: Ed25519KeyPair{Public: pub},
 				Metadata: Metadata{
@@ -55,7 +55,7 @@ func TestEd25519PublicJWKSet(t *testing.T) {
 func TestEd25519PublicJWKSetEmpty(t *testing.T) {
 	t.Parallel()
 
-	snapshot := &Snapshot[Record[Ed25519KeyPair]]{Keys: map[string]Record[Ed25519KeyPair]{}}
+	snapshot := &Snapshot[Record[Ed25519KeyPair]]{keys: map[string]Record[Ed25519KeyPair]{}}
 	set := Ed25519PublicJWKSet(snapshot)
 	require.Empty(t, set.Keys)
 }
@@ -69,7 +69,7 @@ func TestRSAPublicJWKSet(t *testing.T) {
 
 	snapshot := &Snapshot[Record[RSAKeyPair]]{
 		ActiveKID: "rsa-1",
-		Keys: map[string]Record[RSAKeyPair]{
+		keys: map[string]Record[RSAKeyPair]{
 			"rsa-1": {
 				Key: RSAKeyPair{Public: pub},
 				Metadata: Metadata{
@@ -107,7 +107,7 @@ func TestRSAPublicJWKSet(t *testing.T) {
 func TestRSAPublicJWKSetEmpty(t *testing.T) {
 	t.Parallel()
 
-	snapshot := &Snapshot[Record[RSAKeyPair]]{Keys: map[string]Record[RSAKeyPair]{}}
+	snapshot := &Snapshot[Record[RSAKeyPair]]{keys: map[string]Record[RSAKeyPair]{}}
 	set := RSAPublicJWKSet(snapshot)
 	require.Empty(t, set.Keys)
 }

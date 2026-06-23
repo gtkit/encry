@@ -5,7 +5,7 @@
 当前仓库同时包含两类能力：
 
 - 现代默认能力：`AES-GCM`、`SHA224/256/384/512`、`RSA-OAEP`、`RSA-PSS`、`Ed25519`
-- 兼容历史协议能力：`AES-CBC/CFB`、`RSA PKCS#1 v1.5`、`RC4`、`MD5`、`SHA1`
+- 兼容历史协议能力：`AES-CBC/CFB`、`RC4`、`MD5`、`SHA1`
 
 如果是新系统，优先使用现代默认能力。
 
@@ -31,7 +31,7 @@ go get github.com/gtkit/encry
 | --- | --- | --- |
 | `aes` | `AES-CBC`、`AES-CFB`、`AES-GCM` | 新系统优先 `GCM` |
 | `sha256` | `SHA224`、`SHA256`、`SHA384`、`SHA512` | 摘要、文件摘要、摘要校验 |
-| `rsa` | `PKCS#1 v1.5`、`OAEP`、`PSS` | 兼容旧协议与现代 RSA 场景 |
+| `rsa` | `OAEP`、`PSS`、`PKCS#1 PEM` | 加密用 OAEP、签名用 PSS；兼容 PKCS#1 PEM 密钥格式 |
 | `ed` | `Ed25519` | 密钥生成、PEM、签名验签 |
 | `ecdsa` | `ECDSA` | P-256/384 签名验签、PEM |
 | `hmac` | `HMAC-SHA1`、`HMAC-SHA256` | 消息认证 |
@@ -217,7 +217,6 @@ log.Println(a.Verify("s3cr3t", encoded)) // true
 - `md5`
 - `sha1`
 - `rc4`
-- `rsa` 下的 `PKCS#1 v1.5`
 - `aes` 下的 `CBC`、`CFB`
 
 如果你在新服务里需要默认安全方案，优先使用：

@@ -6,6 +6,9 @@ import (
 )
 
 // Hash 提供数字序列的编码与解码能力。
+//
+// 注意：这是当前推荐使用的 API。但"在实现包内暴露接口、构造器返回接口"是 v2 的
+// 收敛目标，v2 可能改为返回具体类型；如有需要请关注版本变更说明。
 type Hash interface {
 	// Encode 将一组无符号整数编码为混淆字符串。
 	Encode(nums []uint64) (string, error)

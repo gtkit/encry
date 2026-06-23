@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+## [v1.2.1] - 2026-06-23
+
+### Fixed
+- 修复 CI lint 失败：`.golangci.yml` 为 v2 配置，但 CI 安装的是 golangci-lint v1.64.8；固定 CI 到 v2 系列（v2.11.4）。
+- `hash.NewArgon2` 增加防御性校验：忽略 nil option，非法（负/零）参数回退默认，避免 `WithSaltLen(负)` 导致的 panic 与弱参数。
+- `internal/keyring.Snapshot` 不再导出可变 `keys` map，外部仅能经 `Get`/`Active`/`KIDs` 只读访问，保证 atomic snapshot 的并发安全语义。
+- 修正 README 与代码不一致：RSA 已无 PKCS#1 v1.5 加解密/签名 API，描述改为 PKCS#1 PEM 密钥格式兼容。
+
+### Changed
+- 移除对 `github.com/redis/go-redis/v9` 的依赖：删除 `internal/httpsig` 的 Redis NonceStore（保留内存版），Redis 防重放示例转为文档。
+- 标注 Deprecated / v2 收敛意图：`aes.NewCBC`/`aes.NewCFB`/`aes.AES`（推荐 GCM/chacha/stream）；`sqids.Hash`、`base64` 加 v2 收敛说明。
+- 补充测试规范：`aes/gcm_test.go`、`rsa/rsa_test.go` 改为 table-driven；benchmark 增加 `b.ReportAllocs()` 与 GCM 基准。
+
 ## [v1.2.0] - 2026-06-23
 
 本轮为一次较大的 API 整理与扩充（项目暂无下游使用者，故破坏性变更直接在 v1 内完成）。

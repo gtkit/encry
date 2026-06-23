@@ -86,6 +86,28 @@ func TestNewArgon2SaltAndKeyLen(t *testing.T) {
 	require.True(t, Argon2VerifyPassword("hunter2", encoded))
 }
 
+func TestNewArgon2RejectsInvalidOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []Argon2Option
+	}{
+		{"负 saltLen", []Argon2Option{WithSaltLen(-1)}},
+		{"零 saltLen", []Argon2Option{WithSaltLen(0)}},
+		{"零 keyLen", []Argon2Option{WithKeyLen(0)}},
+		{"零 time/memory/threads", []Argon2Option{WithTime(0), WithMemory(0), WithThreads(0)}},
+		{"nil option", []Argon2Option{nil}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := NewArgon2(tt.opts...)
+			// 非法值已回退默认：不 panic，且能正常往返。
+			encoded, err := a.Hash("pw")
+			require.NoError(t, err)
+			require.True(t, a.Verify("pw", encoded))
+		})
+	}
+}
+
 func TestArgon2VerifyPasswordVersionMismatch(t *testing.T) {
 	// 版本号不等于 argon2.Version 时返回 false.
 	require.False(t, Argon2VerifyPassword("pw",

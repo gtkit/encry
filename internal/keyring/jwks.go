@@ -37,8 +37,8 @@ func (s JWKSet) JSON() ([]byte, error) {
 
 // Ed25519PublicJWKSet 从 metadata-aware Ed25519 snapshot 构造可发布公钥集.
 func Ed25519PublicJWKSet(snapshot *Snapshot[Record[Ed25519KeyPair]]) JWKSet {
-	keys := make([]JWK, 0, len(snapshot.Keys))
-	for kid, record := range snapshot.Keys {
+	keys := make([]JWK, 0, len(snapshot.keys))
+	for kid, record := range snapshot.keys {
 		keys = append(keys, JWK{
 			KID:       kid,
 			KTY:       "OKP",
@@ -57,8 +57,8 @@ func Ed25519PublicJWKSet(snapshot *Snapshot[Record[Ed25519KeyPair]]) JWKSet {
 
 // RSAPublicJWKSet 从 metadata-aware RSA snapshot 构造可发布公钥集.
 func RSAPublicJWKSet(snapshot *Snapshot[Record[RSAKeyPair]]) JWKSet {
-	keys := make([]JWK, 0, len(snapshot.Keys))
-	for kid, record := range snapshot.Keys {
+	keys := make([]JWK, 0, len(snapshot.keys))
+	for kid, record := range snapshot.keys {
 		e := big.NewInt(int64(record.Key.Public.E)).Bytes()
 		keys = append(keys, JWK{
 			KID:       kid,

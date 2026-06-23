@@ -17,7 +17,10 @@ type cbc struct {
 	aesImpl
 }
 
-// New 创建一个新的Aes实例
+// NewCBC 创建一个 AES-CBC 实例。
+//
+// Deprecated: CBC 模式未认证，无法抵抗密文篡改。新系统请使用 NewGCM，
+// 或 chacha / stream 包；CBC 仅为兼容旧密文保留。
 func NewCBC(key string) AES {
 	return &cbc{
 		aesImpl: newAESImpl(key),

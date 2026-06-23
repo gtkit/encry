@@ -7,9 +7,10 @@ import (
 	"io"
 )
 
-// AES-128:key长度16 字节
-// AES-192:key长度24 字节
-// AES-256:key长度32 字节
+// AES 是 CBC/CFB 共用的加解密接口（key 长度 16/24/32 对应 AES-128/192/256）。
+//
+// Deprecated: 该接口主要服务于未认证的 CBC/CFB（见 NewCBC/NewCFB）。推荐用 NewGCM
+// （返回具体类型 *GCM）或 chacha/stream 包；v2 将收敛掉这个实现包内接口。
 type AES interface {
 	// Encrypt 加密
 	Encrypt(encryptBytes []byte) (string, error)

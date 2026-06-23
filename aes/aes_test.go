@@ -60,13 +60,24 @@ func TestCBCDecryptRejectsInvalid(t *testing.T) {
 	}
 }
 
-func BenchmarkEncryptAndDecrypt(b *testing.B) {
+func BenchmarkCBCEncryptAndDecrypt(b *testing.B) {
+	b.ReportAllocs()
 	key := "IgkibX71IEf382PT"
 
 	aesn := aes.NewCBC(key)
 	for b.Loop() {
 		encryptString, _ := aesn.Encrypt([]byte("123456"))
 		_, _ = aesn.Decrypt(encryptString)
+	}
+}
+
+func BenchmarkGCMEncryptAndDecrypt(b *testing.B) {
+	b.ReportAllocs()
+	gcm := aes.NewGCM("IgkibX71IEf382PT")
+
+	for b.Loop() {
+		cipherText, _ := gcm.Encrypt([]byte("123456"))
+		_, _ = gcm.Decrypt(cipherText)
 	}
 }
 

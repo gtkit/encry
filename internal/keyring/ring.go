@@ -15,9 +15,11 @@ var (
 )
 
 // Snapshot 是某一时刻的只读密钥视图.
+// keys 不导出，确保快照对外只读、保持 atomic snapshot 的并发安全语义；
+// 访问请用 Get/Active/KIDs。
 type Snapshot[T any] struct {
 	ActiveKID string
-	Keys      map[string]T
+	keys      map[string]T
 }
 
 // Active 返回当前生效 kid 对应的密钥.
@@ -32,13 +34,13 @@ func (s *Snapshot[T]) Active() (T, error) {
 
 // Get 返回指定 kid 的密钥.
 func (s *Snapshot[T]) Get(kid string) (T, bool) {
-	key, ok := s.Keys[kid]
+	key, ok := s.keys[kid]
 	return key, ok
 }
 
 // KIDs 返回当前快照中的全部 kid，按字典序排序.
 func (s *Snapshot[T]) KIDs() []string {
-	return slices.Sorted(maps.Keys(s.Keys))
+	return slices.Sorted(maps.Keys(s.keys))
 }
 
 // Ring 提供基于 atomic pointer 的 kid 快照切换.
@@ -62,7 +64,7 @@ func (r *Ring[T]) Store(activeKID string, keys map[string]T) error {
 
 	r.state.Store(&Snapshot[T]{
 		ActiveKID: activeKID,
-		Keys:      maps.Clone(keys),
+		keys:      maps.Clone(keys),
 	})
 	return nil
 }

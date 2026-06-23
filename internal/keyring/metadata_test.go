@@ -200,7 +200,7 @@ func TestActiveRecord(t *testing.T) {
 			name: "active signable",
 			snapshot: &Snapshot[Record[string]]{
 				ActiveKID: "k1",
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusActive}},
 				},
 			},
@@ -210,7 +210,7 @@ func TestActiveRecord(t *testing.T) {
 			name: "active kid not found",
 			snapshot: &Snapshot[Record[string]]{
 				ActiveKID: "missing",
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusActive}},
 				},
 			},
@@ -220,7 +220,7 @@ func TestActiveRecord(t *testing.T) {
 			name: "active but retiring fails sign",
 			snapshot: &Snapshot[Record[string]]{
 				ActiveKID: "k1",
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusRetiring}},
 				},
 			},
@@ -259,7 +259,7 @@ func TestVerifyRecord(t *testing.T) {
 			name: "verifiable",
 			kid:  "k1",
 			snapshot: &Snapshot[Record[string]]{
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusRetiring}},
 				},
 			},
@@ -269,7 +269,7 @@ func TestVerifyRecord(t *testing.T) {
 			name: "kid not found",
 			kid:  "missing",
 			snapshot: &Snapshot[Record[string]]{
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusActive}},
 				},
 			},
@@ -279,7 +279,7 @@ func TestVerifyRecord(t *testing.T) {
 			name: "revoked cannot verify",
 			kid:  "k1",
 			snapshot: &Snapshot[Record[string]]{
-				Keys: map[string]Record[string]{
+				keys: map[string]Record[string]{
 					"k1": {Key: "secret", Metadata: Metadata{KID: "k1", Status: StatusRevoked}},
 				},
 			},

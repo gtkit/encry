@@ -16,7 +16,10 @@ type cfb struct {
 	aesImpl
 }
 
-// NewCFB returns a new AES.
+// NewCFB 创建一个 AES-CFB 实例。
+//
+// Deprecated: CFB 模式未认证（且已被 Go 标准库弃用）。新系统请使用 NewGCM，
+// 或 chacha / stream 包；CFB 仅为兼容旧密文保留。
 func NewCFB(key string) AES {
 	return &cfb{
 		aesImpl: newAESImpl(key),

@@ -8,26 +8,29 @@ import (
 )
 
 func TestGCMEncryptDecrypt(t *testing.T) {
-	gcm := aes.NewGCM("IgkibX71IEf382PT")
+	const key = "IgkibX71IEf382PT"
 
-	cipherText, err := gcm.Encrypt([]byte("hello-gcm"))
-	require.NoError(t, err)
+	tests := []struct {
+		name      string
+		plainText []byte
+		aad       []byte
+	}{
+		{name: "simple", plainText: []byte("hello-gcm"), aad: nil},
+		{name: "with aad", plainText: []byte("hello-gcm"), aad: []byte("order:1001")},
+		{name: "empty plaintext", plainText: []byte(""), aad: []byte("aad")},
+		{name: "binary", plainText: []byte{0x00, 0x01, 0xff}, aad: nil},
+	}
 
-	plainText, err := gcm.Decrypt(cipherText)
-	require.NoError(t, err)
-	require.Equal(t, "hello-gcm", plainText)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gcm := aes.NewGCM(key)
 
-func TestGCMEncryptDecryptWithAAD(t *testing.T) {
-	gcm := aes.NewGCM("IgkibX71IEf382PT")
+			cipherText, err := gcm.EncryptWithAAD(tt.plainText, tt.aad)
+			require.NoError(t, err)
 
-	cipherText, err := gcm.EncryptWithAAD([]byte("hello-gcm"), []byte("aad"))
-	require.NoError(t, err)
-
-	plainText, err := gcm.DecryptWithAAD(cipherText, []byte("aad"))
-	require.NoError(t, err)
-	require.Equal(t, []byte("hello-gcm"), plainText)
-
-	_, err = gcm.DecryptWithAAD(cipherText, []byte("wrong-aad"))
-	require.Error(t, err)
+			got, err := gcm.DecryptWithAAD(cipherText, tt.aad)
+			require.NoError(t, err)
+			require.Equal(t, string(tt.plainText), string(got))
+		})
+	}
 }

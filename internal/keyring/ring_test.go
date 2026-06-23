@@ -63,7 +63,7 @@ func TestRingStore(t *testing.T) {
 			snap, cerr := ring.Current()
 			require.NoError(t, cerr)
 			require.Equal(t, tt.activeKID, snap.ActiveKID)
-			require.Equal(t, tt.keys, snap.Keys)
+			require.Equal(t, tt.keys, snap.keys)
 		})
 	}
 }
@@ -81,8 +81,8 @@ func TestRingStoreClonesInput(t *testing.T) {
 
 	snap, err := ring.Current()
 	require.NoError(t, err)
-	require.Equal(t, "v1", snap.Keys["k1"])
-	_, ok := snap.Keys["k2"]
+	require.Equal(t, "v1", snap.keys["k1"])
+	_, ok := snap.keys["k2"]
 	require.False(t, ok)
 }
 
@@ -111,11 +111,11 @@ func TestRingRotate(t *testing.T) {
 	second, err := ring.Current()
 	require.NoError(t, err)
 	require.Equal(t, "k2", second.ActiveKID)
-	require.Len(t, second.Keys, 2)
+	require.Len(t, second.keys, 2)
 
 	// The earlier snapshot remains unchanged (immutable view).
 	require.Equal(t, "k1", first.ActiveKID)
-	require.Len(t, first.Keys, 1)
+	require.Len(t, first.keys, 1)
 }
 
 func TestSnapshotActive(t *testing.T) {
@@ -146,7 +146,7 @@ func TestSnapshotActive(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			snap := &Snapshot[string]{ActiveKID: tt.activeKID, Keys: tt.keys}
+			snap := &Snapshot[string]{ActiveKID: tt.activeKID, keys: tt.keys}
 			got, err := snap.Active()
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
@@ -163,7 +163,7 @@ func TestSnapshotGet(t *testing.T) {
 
 	snap := &Snapshot[string]{
 		ActiveKID: "k1",
-		Keys:      map[string]string{"k1": "v1"},
+		keys:      map[string]string{"k1": "v1"},
 	}
 
 	got, ok := snap.Get("k1")
@@ -199,7 +199,7 @@ func TestSnapshotKIDs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			snap := &Snapshot[string]{Keys: tt.keys}
+			snap := &Snapshot[string]{keys: tt.keys}
 			got := snap.KIDs()
 			if len(tt.want) == 0 {
 				require.Empty(t, got)

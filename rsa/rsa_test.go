@@ -6,48 +6,61 @@ import (
 	"testing"
 
 	"github.com/gtkit/encry/rsa"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestOAEPEncryptDecrypt(t *testing.T) {
+func TestRSAEncryptionRoundTrip(t *testing.T) {
 	dir := generateRSAKeys(t)
-	plainText := []byte("oaep-message")
+	pub := filepath.Join(dir, "public.pem")
+	pri := filepath.Join(dir, "private.pem")
 
-	cipherText, err := rsa.EncryptOAEPBase64(plainText, filepath.Join(dir, "public.pem"))
-	require.NoError(t, err)
+	tests := []struct {
+		name  string
+		plain []byte
+		enc   func([]byte, string) (string, error)
+		dec   func(string, string) ([]byte, error)
+	}{
+		{"oaep single", []byte("oaep-message"), rsa.EncryptOAEPBase64, rsa.DecryptOAEPBase64},
+		{"oaep chunked large", []byte(strings.Repeat("oaep-block-", 80)), rsa.EncryptOAEPChunkedBase64, rsa.DecryptOAEPChunkedBase64},
+	}
 
-	decrypted, err := rsa.DecryptOAEPBase64(cipherText, filepath.Join(dir, "private.pem"))
-	require.NoError(t, err)
-	assert.Equal(t, plainText, decrypted)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cipherText, err := tt.enc(tt.plain, pub)
+			require.NoError(t, err)
+
+			decrypted, err := tt.dec(cipherText, pri)
+			require.NoError(t, err)
+			require.Equal(t, tt.plain, decrypted)
+		})
+	}
 }
 
-func TestOAEPChunkedEncryptDecrypt(t *testing.T) {
+func TestRSAPSSSignVerify(t *testing.T) {
 	dir := generateRSAKeys(t)
-	plainText := []byte(strings.Repeat("oaep-block-", 80))
+	pub := filepath.Join(dir, "public.pem")
+	pri := filepath.Join(dir, "private.pem")
 
-	cipherText, err := rsa.EncryptOAEPChunkedBase64(plainText, filepath.Join(dir, "public.pem"))
+	const msg = "pss-message"
+	signature, err := rsa.SignPSSBase64([]byte(msg), pri)
 	require.NoError(t, err)
 
-	decrypted, err := rsa.DecryptOAEPChunkedBase64(cipherText, filepath.Join(dir, "private.pem"))
-	require.NoError(t, err)
-	assert.Equal(t, plainText, decrypted)
-}
+	tests := []struct {
+		name    string
+		message string
+		wantOK  bool
+	}{
+		{"valid signature", msg, true},
+		{"tampered message", "pss-tampered", false},
+	}
 
-func TestPSSSignVerify(t *testing.T) {
-	dir := generateRSAKeys(t)
-	plainText := []byte("pss-message")
-
-	signature, err := rsa.SignPSSBase64(plainText, filepath.Join(dir, "private.pem"))
-	require.NoError(t, err)
-
-	ok, err := rsa.VerifyPSSBase64(plainText, filepath.Join(dir, "public.pem"), signature)
-	require.NoError(t, err)
-	require.True(t, ok)
-
-	bad, err := rsa.VerifyPSSBase64([]byte("wrong"), filepath.Join(dir, "public.pem"), signature)
-	require.NoError(t, err)
-	require.False(t, bad)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ok, err := rsa.VerifyPSSBase64([]byte(tt.message), pub, signature)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantOK, ok)
+		})
+	}
 }
 
 func generateRSAKeys(t *testing.T) string {

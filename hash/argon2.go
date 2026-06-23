@@ -73,7 +73,26 @@ func NewArgon2(opts ...Argon2Option) *Argon2 {
 		keyLen:     defaultKeyLen,
 	}
 	for _, opt := range opts {
-		opt(a)
+		if opt != nil {
+			opt(a)
+		}
+	}
+	// 防御性校验：非法（负/零）参数回退默认，避免 saltLength<=0 在 make 时 panic、
+	// 或 keyLen/time/memory/threads 为 0 导致的弱参数/异常。
+	if a.saltLength <= 0 {
+		a.saltLength = defaultSaltLength
+	}
+	if a.time == 0 {
+		a.time = defaultTime
+	}
+	if a.memory == 0 {
+		a.memory = defaultMemory
+	}
+	if a.threads == 0 {
+		a.threads = defaultThreads
+	}
+	if a.keyLen == 0 {
+		a.keyLen = defaultKeyLen
 	}
 	return a
 }

@@ -2,6 +2,9 @@
 
 // Package base64 提供 Base64 编解码的便捷封装（标准库 encoding/base64），
 // 覆盖 Std/URL/RawStd/RawURL 四种编码。注意：Base64 只是编码，不是加密。
+//
+// 本包基本是标准库的一层薄封装；新代码直接用 encoding/base64 亦可。
+// v2 可能收敛或移除本包，届时见版本变更说明。
 package base64
 
 import (
