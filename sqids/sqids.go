@@ -1,4 +1,4 @@
-// Package hids 基于 sqids（hashids 的官方继任者）提供数字序列与短混淆字符串的可逆编解码。
+// Package sqids 基于 sqids（hashids 的官方继任者）提供数字序列与短混淆字符串的可逆编解码。
 package sqids
 
 import (

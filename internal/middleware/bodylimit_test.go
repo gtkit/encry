@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gtkit/encry/internal/httpsig"
 	"github.com/stretchr/testify/require"
 )
@@ -38,28 +37,6 @@ func TestHTTPVerifyMiddlewareWithOptionsRejectsBodyTooLarge(t *testing.T) {
 	require.Zero(t, verifier.calls)
 }
 
-func TestGinVerifyMiddlewareWithOptionsRejectsBodyTooLarge(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	verifier := &countingVerifier{}
-	router := gin.New()
-	router.Use(GinVerifyMiddlewareWithOptions(verifier, VerifyMiddlewareOptions{
-		MaxBodyBytes: 4,
-	}))
-	router.POST("/callbacks/order-paid", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", strings.NewReader("12345"))
-	req.Header.Set("X-Signature", "kid.signature")
-	resp := httptest.NewRecorder()
-
-	router.ServeHTTP(resp, req)
-
-	require.Equal(t, http.StatusRequestEntityTooLarge, resp.Code)
-	require.Zero(t, verifier.calls)
-}
-
 func TestHTTPVerifyRequestMiddlewareRejectsBodyTooLarge(t *testing.T) {
 	verifier := &countingVerifier{}
 	handler := HTTPVerifyRequestMiddleware(verifier, httpsig.VerifyOptions{
@@ -72,27 +49,6 @@ func TestHTTPVerifyRequestMiddlewareRejectsBodyTooLarge(t *testing.T) {
 	resp := httptest.NewRecorder()
 
 	handler.ServeHTTP(resp, req)
-
-	require.Equal(t, http.StatusRequestEntityTooLarge, resp.Code)
-	require.Zero(t, verifier.calls)
-}
-
-func TestGinVerifyRequestMiddlewareRejectsBodyTooLarge(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	verifier := &countingVerifier{}
-	router := gin.New()
-	router.Use(GinVerifyRequestMiddleware(verifier, httpsig.VerifyOptions{
-		MaxBodyBytes: 4,
-	}))
-	router.POST("/callbacks/order-paid", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/callbacks/order-paid", strings.NewReader("12345"))
-	resp := httptest.NewRecorder()
-
-	router.ServeHTTP(resp, req)
 
 	require.Equal(t, http.StatusRequestEntityTooLarge, resp.Code)
 	require.Zero(t, verifier.calls)

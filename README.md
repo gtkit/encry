@@ -248,7 +248,6 @@ go run ./examples/ed25519_files
 go run ./examples/jwks_publish
 go run ./examples/http_middleware
 go run ./examples/http_middleware_redis
-go run ./examples/gin_middleware
 go run ./examples/service_aes_gcm
 go run ./examples/service_ed25519_rotation
 go run ./examples/service_rsa_pss_rotation
@@ -261,6 +260,8 @@ go run ./examples/service_rsa_pss_rotation
 > 按 Go 的 internal 规则，**这些包仅供本模块内部使用，外部项目无法 `import`**。
 > 这些示例是面向本仓维护者的参考实现，不属于对外公开 API；外部使用者请使用顶层公开包
 > （`aes`、`rsa`、`ed`、`ecdsa`、`hpke`、`mlkem`、`chacha`、`ecdh`、`hkdf`、`hmac`、`hash`、`sha256` 等）。
+>
+> 注：本库**不依赖 gin**。原 gin 中间件示例已转为文档 [`examples/gin_middleware/README.md`](examples/gin_middleware/README.md)（HTTP 中间件以标准库 `net/http` 实现）。
 
 ## 构建边界
 

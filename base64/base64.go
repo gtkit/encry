@@ -1,4 +1,7 @@
 // @Author xiaozhaofu 2022/12/1 11:46:00
+
+// Package base64 提供 Base64 编解码的便捷封装（标准库 encoding/base64），
+// 覆盖 Std/URL/RawStd/RawURL 四种编码。注意：Base64 只是编码，不是加密。
 package base64
 
 import (

@@ -1,4 +1,7 @@
 // @Author xiaozhaofu 2023/3/20 17:47:00
+
+// Package sign 提供请求参数的字典序拼接与签名：MapSign（MD5，兼容旧系统）
+// 与 MapSignHMAC（HMAC-SHA256，推荐）。
 package sign
 
 import (
