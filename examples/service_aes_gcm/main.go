@@ -37,12 +37,12 @@ func run(out *log.Logger) error {
 	}
 	defer cleanup()
 
-	if err := ensureAESDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
+	if err = ensureAESDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
 		return err
 	}
 
 	ring := keyring.New[keyring.Record[string]]()
-	if err := reloadAESKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
+	if err = reloadAESKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
 		return err
 	}
 	service := sealer.NewManagedAESGCM(ring)
@@ -53,10 +53,10 @@ func run(out *log.Logger) error {
 		return err
 	}
 
-	if err := writeAESMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
+	if err = writeAESMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
 		return err
 	}
-	if err := reloadAESKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
+	if err = reloadAESKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
 		return err
 	}
 	tokenV2, err := service.Encrypt([]byte(`{"order_id":"1002","status":"paid"}`), aad)

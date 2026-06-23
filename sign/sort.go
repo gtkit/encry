@@ -83,6 +83,9 @@ func stringifyValue(value any) (string, bool) {
 }
 
 // MapSign map 排序后字符串参数获取 sign.
+//
+// 注意：本函数使用 MD5（appSecret 同串前后拼接），抗碰撞已较弱，仅为兼容旧系统保留。
+// 新系统请使用 MapSignHMAC（HMAC-SHA256）。
 func MapSign(signStr, appSecret string) string {
 	var buf bytes.Buffer
 	if appSecret != "" {

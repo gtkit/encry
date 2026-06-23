@@ -18,6 +18,9 @@ var (
 )
 
 // Sign 保留兼容旧接口：生成一对新密钥并返回原始字符串公钥和签名.
+//
+// Deprecated: 每次调用都会生成临时密钥对、密钥即用即弃，事后无法验签，实用价值有限。
+// 请改用 GenerateKeyPair + SignBytes/SignBase64，自行管理密钥。
 func Sign(msg string) (string, string) {
 	publicKey, privateKey, err := GenerateKeyPair()
 	if err != nil {
@@ -31,6 +34,8 @@ func Sign(msg string) (string, string) {
 }
 
 // Verify 保留兼容旧接口：使用原始字节字符串验签.
+//
+// Deprecated: 原始字符串接口易因编码/长度问题误用，请改用 VerifyBytes/VerifyBase64。
 func Verify(publicKey, msg, signature string) bool {
 	return VerifyBytes(ed25519.PublicKey(publicKey), []byte(msg), []byte(signature))
 }

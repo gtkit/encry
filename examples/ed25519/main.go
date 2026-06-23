@@ -28,7 +28,7 @@ func run(out *log.Logger) error {
 	privateKeyPath := filepath.Join(dir, "private.pem")
 	publicKeyPath := filepath.Join(dir, "public.pem")
 
-	if err := ed.WriteKeyPair(privateKeyPath, publicKeyPath); err != nil {
+	if err = ed.WriteKeyPair(privateKeyPath, publicKeyPath); err != nil {
 		return err
 	}
 

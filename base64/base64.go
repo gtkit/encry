@@ -14,8 +14,7 @@ RawURLEncoding	URL safe 编码，末尾不补 =
 */
 
 // Encode @Title Encode.
-// @Description 加密.
-// @Author xiaozhaofu 2022-12-01 12:00:22.
+// @Description Base64 标准编码（注意：Base64 只是编码，不是加密）.
 // @Param data.
 // @Return string.
 func Encode(data []byte) string {
@@ -28,7 +27,7 @@ func StdEncode(data []byte) string {
 }
 
 // Decode @Title Decode.
-// @Description 解密.
+// @Description Base64 标准解码（注意：Base64 只是编码，不是加密）.
 // @Param data.
 // @Return string.
 func Decode(data string) (str []byte, err error) {

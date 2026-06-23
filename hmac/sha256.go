@@ -22,9 +22,9 @@ func Sha256ToHex(key, data []byte) string {
 	return hex.EncodeToString(Sha256(key, data))
 }
 
-// Sha256ToBase64 将加密后的二进制转Base64字符串.
+// Sha256ToBase64 将加密后的二进制转Base64字符串（标准 Base64，与 Sha1ToBase64 一致）.
 func Sha256ToBase64(key, data []byte) string {
-	return base64.URLEncoding.EncodeToString(Sha256(key, data))
+	return base64.StdEncoding.EncodeToString(Sha256(key, data))
 }
 
 // Sha256Verify 验证签名是否正确.

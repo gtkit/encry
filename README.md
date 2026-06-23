@@ -164,6 +164,41 @@ func main() {
 }
 ```
 
+### Argon2 密码哈希
+
+零配置：只传明文即可，使用安全默认参数（argon2id, t=3, m=64MB, p=4），输出 PHC 标准串。
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/gtkit/encry/hash"
+)
+
+func main() {
+	encoded, err := hash.Argon2HashPassword("s3cr3t")
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println(hash.Argon2VerifyPassword("s3cr3t", encoded)) // true
+}
+```
+
+需要调参时用 Functional Options：
+
+```go
+a := hash.NewArgon2(
+	hash.WithMemory(32*1024), // 32MB
+	hash.WithTime(2),
+)
+
+encoded, _ := a.Hash("s3cr3t")
+log.Println(a.Verify("s3cr3t", encoded)) // true
+```
+
 ## 兼容算法说明
 
 下列能力保留是为了兼容旧系统，不建议作为新协议默认选型：
@@ -180,6 +215,9 @@ func main() {
 - 摘要：`SHA256` 及以上
 - 非对称加密：`RSA-OAEP`
 - 非对称签名：`RSA-PSS` 或 `Ed25519`
+
+> 大数据加密提示：RSA 单块/分段（`EncryptOAEPChunked` 等）直接加密大块数据是反模式、效率低。
+> 正确做法是混合加密——用随机 AES key 以 `AES-GCM` 加密数据，再用 `RSA-OAEP` 加密这把 AES key 一并传输。
 
 ## 可运行示例
 

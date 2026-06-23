@@ -12,7 +12,7 @@ require (
 require (
 	github.com/gtkit/json v0.2.10
 	github.com/redis/go-redis/v9 v9.18.0
-	github.com/speps/go-hashids v2.0.0+incompatible
+	github.com/sqids/sqids-go v0.4.1
 	golang.org/x/crypto v0.49.0
 )
 

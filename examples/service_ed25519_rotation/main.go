@@ -36,12 +36,12 @@ func run(out *log.Logger) error {
 	}
 	defer cleanup()
 
-	if err := ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
+	if err = ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
 		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.Ed25519KeyPair]]()
-	if err := reloadEd25519Keys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
+	if err = reloadEd25519Keys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
 		return err
 	}
 	service := signer.NewManagedEd25519(ring)
@@ -51,10 +51,10 @@ func run(out *log.Logger) error {
 		return err
 	}
 
-	if err := writeEd25519Metadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
+	if err = writeEd25519Metadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
 		return err
 	}
-	if err := reloadEd25519Keys(ring, cfg.KeyDir, "2026-04"); err != nil {
+	if err = reloadEd25519Keys(ring, cfg.KeyDir, "2026-04"); err != nil {
 		return err
 	}
 	signatureV2, err := service.Sign([]byte(`{"event":"user.updated","id":"1001"}`))

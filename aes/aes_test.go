@@ -2,6 +2,7 @@ package aes_test
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"testing"
 
 	"github.com/gtkit/encry/aes"
@@ -36,6 +37,27 @@ func TestCFBEncrypt(t *testing.T) {
 	decryptString, err := decryptor.Decrypt(encryptString)
 	require.NoError(t, err)
 	require.Equal(t, plaintext, decryptString)
+}
+
+func TestCBCDecryptRejectsInvalid(t *testing.T) {
+	key := "IgkibX71IEf382PT"
+	decryptor := aes.NewCBC(key)
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		// 合法 Base64(URL)，但首字节非 cipherFormatVersion（旧格式/伪造数据）
+		{"非版本前缀", base64.URLEncoding.EncodeToString([]byte("not-a-versioned-ciphertext-blob!"))},
+		{"非法 Base64", "%%%not-base64%%%"},
+		{"空串", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := decryptor.Decrypt(tt.input)
+			require.Error(t, err)
+		})
+	}
 }
 
 func BenchmarkEncryptAndDecrypt(b *testing.B) {

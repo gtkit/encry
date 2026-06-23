@@ -20,7 +20,6 @@ type AES interface {
 
 type aesImpl struct {
 	key []byte // 秘钥：16, 24, 32字节长度的字符串，用于加密解密
-	iv  []byte // 仅用于兼容旧版 CBC 密文解密，新版密文会自带随机 IV
 }
 
 const cipherFormatVersion byte = 1
@@ -31,11 +30,7 @@ var (
 )
 
 func newAESImpl(key string) aesImpl {
-	legacyIV, _ := newIV()
-	return aesImpl{
-		key: []byte(key),
-		iv:  legacyIV,
-	}
+	return aesImpl{key: []byte(key)}
 }
 
 func newIV() ([]byte, error) {

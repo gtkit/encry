@@ -124,7 +124,7 @@ func TestPKIXPublicKeyCompatibility(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "private.pem"), rsa.MarshalPKCS1PrivateKeyPEM(privateKey), 0o600))
 	pkixPublic, err := rsa.MarshalPKIXPublicKeyPEM(publicKey)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "public.pem"), pkixPublic, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "public.pem"), pkixPublic, 0o600))
 
 	plainText := []byte("pkix-public-key")
 	cipherText, err := rsa.Encrypt(plainText, filepath.Join(dir, "public.pem"))
@@ -147,7 +147,7 @@ func TestSignCS8MD5Compatibility(t *testing.T) {
 		Bytes: pkcs8DER,
 	})
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "private_pkcs8.pem"), privatePEM, 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "public.pem"), rsa.MarshalPKCS1PublicKeyPEM(publicKey), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "public.pem"), rsa.MarshalPKCS1PublicKeyPEM(publicKey), 0o600))
 
 	signature, err := rsa.SignCS8MD5("legacy-md5", filepath.Join(dir, "private_pkcs8.pem"))
 	require.NoError(t, err)

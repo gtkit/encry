@@ -16,7 +16,7 @@ func ExampleEncryptOAEPBase64() {
 	}
 	defer os.RemoveAll(dir)
 
-	if err := rsa.GenerateRsaKey(2048, dir); err != nil {
+	if err = rsa.GenerateRsaKey(2048, dir); err != nil {
 		panic(err)
 	}
 
@@ -43,7 +43,7 @@ func ExampleSignPSSBase64() {
 	}
 	defer os.RemoveAll(dir)
 
-	if err := rsa.GenerateRsaKey(2048, dir); err != nil {
+	if err = rsa.GenerateRsaKey(2048, dir); err != nil {
 		panic(err)
 	}
 

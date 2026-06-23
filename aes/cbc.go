@@ -64,14 +64,11 @@ func (a *cbc) Decrypt(decryptStr string) (string, error) {
 		return "", err
 	}
 
-	if len(decryptBytes) > 0 && decryptBytes[0] == cipherFormatVersion {
-		decrypted, err := decryptWithPrefixedIV(block, decryptBytes)
-		if err == nil {
-			return string(decrypted), nil
-		}
+	if len(decryptBytes) == 0 || decryptBytes[0] != cipherFormatVersion {
+		return "", errInvalidCiphertext
 	}
 
-	decrypted, err := decryptLegacy(block, a.iv, decryptBytes)
+	decrypted, err := decryptWithPrefixedIV(block, decryptBytes)
 	if err != nil {
 		return "", err
 	}
@@ -115,15 +112,5 @@ func decryptWithPrefixedIV(block cipher.Block, data []byte) ([]byte, error) {
 
 	decrypted := make([]byte, len(cipherText))
 	cipher.NewCBCDecrypter(block, iv).CryptBlocks(decrypted, cipherText)
-	return pkcs5UnPadding(decrypted)
-}
-
-func decryptLegacy(block cipher.Block, iv, data []byte) ([]byte, error) {
-	if len(iv) != aes.BlockSize || len(data) == 0 || len(data)%block.BlockSize() != 0 {
-		return nil, errInvalidCiphertext
-	}
-
-	decrypted := make([]byte, len(data))
-	cipher.NewCBCDecrypter(block, iv).CryptBlocks(decrypted, data)
 	return pkcs5UnPadding(decrypted)
 }

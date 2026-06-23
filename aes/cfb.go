@@ -42,8 +42,8 @@ func (c *cfb) Encrypt(data []byte) (string, error) {
 	}
 
 	// #nosec G407 -- iv is filled from crypto/rand above before use.
-	cipher.NewCFBEncrypter(ciph, iv).
-		XORKeyStream(encdata[1+aes.BlockSize:], data)
+	stream := cipher.NewCFBEncrypter(ciph, iv) //nolint:staticcheck // CFB 仅为兼容旧密文保留，新系统请用 GCM
+	stream.XORKeyStream(encdata[1+aes.BlockSize:], data)
 	return base64.URLEncoding.EncodeToString(encdata), nil
 }
 
@@ -76,8 +76,8 @@ func decryptCurrentCFB(key, data []byte) (string, error) {
 	}
 
 	plainText := make([]byte, len(data)-1-aes.BlockSize)
-	cipher.NewCFBDecrypter(ciph, data[1:1+aes.BlockSize]).
-		XORKeyStream(plainText, data[1+aes.BlockSize:])
+	stream := cipher.NewCFBDecrypter(ciph, data[1:1+aes.BlockSize]) //nolint:staticcheck // CFB 仅为兼容旧密文保留，新系统请用 GCM
+	stream.XORKeyStream(plainText, data[1+aes.BlockSize:])
 	return string(plainText), nil
 }
 
@@ -92,8 +92,8 @@ func decryptLegacyCFB(key, data []byte) (string, error) {
 	}
 
 	decdata := make([]byte, len(data)-aes.BlockSize)
-	cipher.NewCFBDecrypter(ciph, data[:aes.BlockSize]).
-		XORKeyStream(decdata, data[aes.BlockSize:])
+	stream := cipher.NewCFBDecrypter(ciph, data[:aes.BlockSize]) //nolint:staticcheck // CFB 仅为兼容旧密文保留，新系统请用 GCM
+	stream.XORKeyStream(decdata, data[aes.BlockSize:])
 	if len(decdata) < aes.BlockSize {
 		return "", ErrDecryptFailed
 	}

@@ -35,7 +35,7 @@ func ExampleWriteKeyPair() {
 
 	privatePath := filepath.Join(dir, "private.pem")
 	publicPath := filepath.Join(dir, "public.pem")
-	if err := ed.WriteKeyPair(privatePath, publicPath); err != nil {
+	if err = ed.WriteKeyPair(privatePath, publicPath); err != nil {
 		panic(err)
 	}
 

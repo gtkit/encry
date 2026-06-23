@@ -38,12 +38,12 @@ func run(out *log.Logger) error {
 	}
 	defer cleanup()
 
-	if err := ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
+	if err = ensureDemoKeys(cfg.KeyDir, "2026-03", "2026-04"); err != nil {
 		return err
 	}
 
 	ring := keyring.New[keyring.Record[keyring.RSAKeyPair]]()
-	if err := reloadRSAKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
+	if err = reloadRSAKeys(ring, cfg.KeyDir, cfg.ActiveKID); err != nil {
 		return err
 	}
 	opts := &stdrsa.PSSOptions{
@@ -57,10 +57,10 @@ func run(out *log.Logger) error {
 		return err
 	}
 
-	if err := writeRSAMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
+	if err = writeRSAMetadata(cfg.KeyDir, "2026-03", keyring.StatusRetiring); err != nil {
 		return err
 	}
-	if err := reloadRSAKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
+	if err = reloadRSAKeys(ring, cfg.KeyDir, "2026-04"); err != nil {
 		return err
 	}
 	signatureV2, err := service.Sign([]byte(`{"report":"settlement","batch":"2026-04-01"}`))

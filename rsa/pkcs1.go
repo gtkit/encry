@@ -122,7 +122,7 @@ func EncryptPKCS1v15(publicKey *stdrsa.PublicKey, plainText []byte) ([]byte, err
 	if len(plainText) > maxPKCS1v15PlaintextSize(publicKey) {
 		return nil, stdrsa.ErrMessageTooLong
 	}
-	return stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+	return stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText) //nolint:staticcheck // 旧版 PKCS#1 v1.5 兼容，导出层已标注 Deprecated
 }
 
 // EncryptPKCS1v15Base64 使用 RSA 公钥执行单块 PKCS#1 v1.5 加密并编码为 Base64.
@@ -148,7 +148,7 @@ func DecryptPKCS1v15(privateKey *stdrsa.PrivateKey, cipherText []byte) ([]byte, 
 		}
 		return nil, errInvalidCiphertextSize(len(cipherText), privateKey.Size())
 	}
-	return stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
+	return stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText) //nolint:staticcheck // 旧版 PKCS#1 v1.5 兼容，导出层已标注 Deprecated
 }
 
 // DecryptPKCS1v15Base64 使用 RSA 私钥执行单块 PKCS#1 v1.5 Base64 解密.
@@ -173,7 +173,7 @@ func EncryptPKCS1v15Chunked(publicKey *stdrsa.PublicKey, plainText []byte) ([]by
 	var buffer bytes.Buffer
 	for offset := 0; offset < len(plainText); offset += blockSize {
 		end := min(offset+blockSize, len(plainText))
-		chunk, err := stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText[offset:end])
+		chunk, err := stdrsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText[offset:end]) //nolint:staticcheck // 旧版 PKCS#1 v1.5 兼容，导出层已标注 Deprecated
 		if err != nil {
 			return nil, err
 		}
@@ -207,7 +207,7 @@ func DecryptPKCS1v15Chunked(privateKey *stdrsa.PrivateKey, cipherText []byte) ([
 
 	var buffer bytes.Buffer
 	for offset := 0; offset < len(cipherText); offset += keySize {
-		chunk, err := stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText[offset:offset+keySize])
+		chunk, err := stdrsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText[offset:offset+keySize]) //nolint:staticcheck // 旧版 PKCS#1 v1.5 兼容，导出层已标注 Deprecated
 		if err != nil {
 			return nil, err
 		}

@@ -1,76 +1,107 @@
-# golangci-lint v1.64.8 configuration
-# Keep release gates strict on correctness and security, but avoid style-only
-# noise that is not realistic for this repository.
+version: "2"
 
 run:
   timeout: 5m
   tests: true
-  concurrency: 4
+  concurrency: 0
+  build-tags:
+    - sonic
 
 output:
   formats:
-    - format: colored-line-number
-  sort-results: true
+    text:
+      path: stdout
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
+    - errchkjson
     - errname
-    - errorlint
-    - gofmt
-    - goimports
-    - gosimple
-    - gosec
     - govet
     - ineffassign
     - nilerr
-    - nilnil
-    - nolintlint
-    - nosprintfhostport
-    - rowserrcheck
+    - nilnesserr
     - staticcheck
-    - unconvert
     - unused
+    - gocheckcompilerdirectives
+    - gosec
+    - misspell
+    - nolintlint
+    - predeclared
+    - revive
+    - unconvert
+    - unparam
     - wastedassign
+    - whitespace
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
 
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
 
-  gosec:
-    excludes:
-      - G104
-      - G304
+    staticcheck:
+      checks:
+        - all
+        - "-ST1000"
+        - "-ST1003"
 
-  nolintlint:
-    require-explanation: true
-    require-specific: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: if-return
+        - name: increment-decrement
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
 
-  rowserrcheck:
-    packages:
-      - github.com/jmoiron/sqlx
+    gosec:
+      excludes:
+        - G104
+
+    misspell:
+      locale: US
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+  exclusions:
+    generated: lax
+    warn-unused: true
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: strict
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-    - path: aes/cfb\.go
-      linters:
-        - staticcheck
-      text: "SA1019:"
-    - path: rsa/pkcs1\.go
-      linters:
-        - staticcheck
-      text: "SA1019:"
+  uniq-by-line: true
+  new: false
+  fix: false

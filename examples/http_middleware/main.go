@@ -41,7 +41,7 @@ func run(out *log.Logger) error {
 	}
 	defer cleanup()
 
-	if err := ensureEdKeys(cfg.KeyDir, "2026-03", keyring.StatusActive); err != nil {
+	if err = ensureEdKeys(cfg.KeyDir, "2026-03", keyring.StatusActive); err != nil {
 		return err
 	}
 
@@ -50,7 +50,7 @@ func run(out *log.Logger) error {
 	if err != nil {
 		return err
 	}
-	if err := ring.Store(cfg.ActiveKID, records); err != nil {
+	if err = ring.Store(cfg.ActiveKID, records); err != nil {
 		return err
 	}
 	service := signer.NewManagedEd25519(ring)

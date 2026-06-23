@@ -31,16 +31,16 @@ func run(out *log.Logger) error {
 
 	edDir := filepath.Join(dir, "ed25519")
 	rsaDir := filepath.Join(dir, "rsa")
-	if err := ensureEdKeys(edDir, "ed-active", keyring.StatusActive, false); err != nil {
+	if err = ensureEdKeys(edDir, "ed-active", keyring.StatusActive, false); err != nil {
 		return err
 	}
-	if err := ensureEdKeys(edDir, "ed-revoked", keyring.StatusRevoked, true); err != nil {
+	if err = ensureEdKeys(edDir, "ed-revoked", keyring.StatusRevoked, true); err != nil {
 		return err
 	}
-	if err := ensureRSAKeys(rsaDir, "rsa-active", keyring.StatusActive, false); err != nil {
+	if err = ensureRSAKeys(rsaDir, "rsa-active", keyring.StatusActive, false); err != nil {
 		return err
 	}
-	if err := ensureRSAKeys(rsaDir, "rsa-retiring", keyring.StatusRetiring, false); err != nil {
+	if err = ensureRSAKeys(rsaDir, "rsa-retiring", keyring.StatusRetiring, false); err != nil {
 		return err
 	}
 
@@ -49,7 +49,7 @@ func run(out *log.Logger) error {
 	if err != nil {
 		return err
 	}
-	if err := edRing.Store("ed-active", edRecords); err != nil {
+	if err = edRing.Store("ed-active", edRecords); err != nil {
 		return err
 	}
 	edSnapshot, err := edRing.Current()
@@ -62,7 +62,7 @@ func run(out *log.Logger) error {
 	if err != nil {
 		return err
 	}
-	if err := rsaRing.Store("rsa-active", rsaRecords); err != nil {
+	if err = rsaRing.Store("rsa-active", rsaRecords); err != nil {
 		return err
 	}
 	rsaSnapshot, err := rsaRing.Current()

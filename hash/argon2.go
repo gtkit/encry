@@ -11,7 +11,18 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type PasswordManager struct {
+// 默认 argon2id 参数，兼顾安全与性能（接近 OWASP 推荐）.
+const (
+	defaultSaltLength = 16
+	defaultTime       = 3
+	defaultMemory     = 64 * 1024 // 64MB
+	defaultThreads    = 4
+	defaultKeyLen     = 32
+)
+
+// Argon2 持有一组 argon2id 哈希参数，用于生成与校验密码哈希.
+// 通过 NewArgon2 创建实例后字段只读，可被多个 goroutine 并发安全使用.
+type Argon2 struct {
 	saltLength int
 	time       uint32
 	memory     uint32
@@ -19,44 +30,91 @@ type PasswordManager struct {
 	keyLen     uint32
 }
 
-// Argon2HashPassword 生成密码哈希.
-func Argon2HashPassword(password string) (string, error) {
-	pm := &PasswordManager{
-		saltLength: 16,
-		time:       3,
-		memory:     64 * 1024, // 64MB
-		threads:    4,
-		keyLen:     32,
-	}
+// PasswordManager 是 Argon2 的旧名.
+//
+// Deprecated: 请使用 Argon2 / NewArgon2.
+type PasswordManager = Argon2
 
-	// 生成随机盐
-	salt := make([]byte, pm.saltLength)
+// Argon2Option 用于定制 Argon2 的参数（Functional Options）.
+type Argon2Option func(*Argon2)
+
+// WithTime 设置迭代次数（time cost）.
+func WithTime(t uint32) Argon2Option {
+	return func(a *Argon2) { a.time = t }
+}
+
+// WithMemory 设置内存用量，单位 KiB.
+func WithMemory(kib uint32) Argon2Option {
+	return func(a *Argon2) { a.memory = kib }
+}
+
+// WithThreads 设置并行度.
+func WithThreads(p uint8) Argon2Option {
+	return func(a *Argon2) { a.threads = p }
+}
+
+// WithSaltLen 设置随机盐的字节长度.
+func WithSaltLen(n int) Argon2Option {
+	return func(a *Argon2) { a.saltLength = n }
+}
+
+// WithKeyLen 设置派生哈希的字节长度.
+func WithKeyLen(n uint32) Argon2Option {
+	return func(a *Argon2) { a.keyLen = n }
+}
+
+// NewArgon2 使用默认参数创建实例，opts 可覆盖任意默认值.
+func NewArgon2(opts ...Argon2Option) *Argon2 {
+	a := &Argon2{
+		saltLength: defaultSaltLength,
+		time:       defaultTime,
+		memory:     defaultMemory,
+		threads:    defaultThreads,
+		keyLen:     defaultKeyLen,
+	}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
+}
+
+// Hash 用当前参数生成 argon2id 哈希，输出 PHC 标准串.
+func (a *Argon2) Hash(password string) (string, error) {
+	salt := make([]byte, a.saltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("生成盐失败: %w", err)
 	}
 
-	// 使用Argon2生成哈希
 	hash := argon2.IDKey(
 		[]byte(password),
 		salt,
-		pm.time,
-		pm.memory,
-		pm.threads,
-		pm.keyLen,
+		a.time,
+		a.memory,
+		a.threads,
+		a.keyLen,
 	)
 
-	// 编码为Base64
 	saltBase64 := base64.RawStdEncoding.EncodeToString(salt)
 	hashBase64 := base64.RawStdEncoding.EncodeToString(hash)
 
-	// 返回格式化的哈希字符串
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version,
-		pm.memory,
-		pm.time,
-		pm.threads,
+		a.memory,
+		a.time,
+		a.threads,
 		saltBase64,
 		hashBase64), nil
+}
+
+// Verify 校验明文与 PHC 串是否匹配；参数从串中解析，与实例自身参数无关.
+// 格式非法、版本不符或解码失败时返回 false（不 panic）.
+func (a *Argon2) Verify(password, encoded string) bool {
+	return Argon2VerifyPassword(password, encoded)
+}
+
+// Argon2HashPassword 用默认参数生成密码哈希.
+func Argon2HashPassword(password string) (string, error) {
+	return NewArgon2().Hash(password)
 }
 
 // Argon2VerifyPassword 验证密码.
@@ -120,25 +178,4 @@ func hashByteLen(n int64) (uint32, bool) {
 		return 0, false
 	}
 	return uint32(n), true
-}
-
-// GenerateRandomPassword 生成随机密码.
-func GenerateRandomPassword(length int) (string, error) {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
-
-	if length <= 0 {
-		return "", nil
-	}
-
-	randomBytes := make([]byte, length)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return "", err
-	}
-
-	password := make([]byte, length)
-	for i, randomByte := range randomBytes {
-		password[i] = charset[int(randomByte)%len(charset)]
-	}
-
-	return string(password), nil
 }

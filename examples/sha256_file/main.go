@@ -26,7 +26,7 @@ func run(out *log.Logger) error {
 	defer os.RemoveAll(dir)
 
 	path := filepath.Join(dir, "payload.json")
-	if err := os.WriteFile(path, []byte(`{"order_id":"1001","status":"paid"}`), 0o600); err != nil {
+	if err = os.WriteFile(path, []byte(`{"order_id":"1001","status":"paid"}`), 0o600); err != nil {
 		return err
 	}
 

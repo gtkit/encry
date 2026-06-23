@@ -27,7 +27,7 @@ func run(out *log.Logger) error {
 	}
 	defer os.RemoveAll(dir)
 
-	if err := encryrsa.GenerateRsaKey(2048, dir); err != nil {
+	if err = encryrsa.GenerateRsaKey(2048, dir); err != nil {
 		return err
 	}
 
