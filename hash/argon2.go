@@ -20,6 +20,15 @@ const (
 	defaultKeyLen     = 32
 )
 
+// 校验时对 PHC 串中参数的上限：防止不可信哈希串用超大 m/t/p 造成内存/CPU DoS.
+// 上限远高于默认值，不影响任何合法配置；超限或为 0 的参数一律判为无效.
+const (
+	maxVerifyMemory  uint32 = 1 << 20 // 1 GiB（单位 KiB）
+	maxVerifyTime    uint32 = 16
+	maxVerifyThreads uint8  = 16
+	maxVerifyHashLen uint32 = 1024
+)
+
 // Argon2 持有一组 argon2id 哈希参数，用于生成与校验密码哈希.
 // 通过 NewArgon2 创建实例后字段只读，可被多个 goroutine 并发安全使用.
 type Argon2 struct {
@@ -163,6 +172,13 @@ func Argon2VerifyPassword(password, hash string) bool {
 		return false
 	}
 
+	// 防 DoS：拒绝来自不可信哈希串的超大/非法参数.
+	if memory == 0 || memory > maxVerifyMemory ||
+		time == 0 || time > maxVerifyTime ||
+		threads == 0 || threads > maxVerifyThreads {
+		return false
+	}
+
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false
@@ -174,7 +190,7 @@ func Argon2VerifyPassword(password, hash string) bool {
 	}
 
 	hashLen, ok := hashByteLen(int64(len(expectedHash)))
-	if !ok {
+	if !ok || hashLen == 0 || hashLen > maxVerifyHashLen {
 		return false
 	}
 

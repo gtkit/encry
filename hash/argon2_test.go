@@ -114,6 +114,24 @@ func TestArgon2VerifyPasswordVersionMismatch(t *testing.T) {
 		"$argon2id$v=1$m=65536,t=3,p=4$YWJj$YWJj"))
 }
 
+func TestArgon2VerifyPasswordRejectsDoSParams(t *testing.T) {
+	// 构造格式合法但参数超大的 PHC 串：应被防 DoS 上限拦截，快速返回 false（不跑 argon2）。
+	tests := []struct {
+		name    string
+		encoded string
+	}{
+		{"超大 memory", "$argon2id$v=19$m=2000000,t=3,p=4$YWJjYWJjYWJjYWJj$YWJjYWJjYWJjYWJj"},
+		{"超大 time", "$argon2id$v=19$m=65536,t=99,p=4$YWJjYWJjYWJjYWJj$YWJjYWJjYWJjYWJj"},
+		{"超大 threads", "$argon2id$v=19$m=65536,t=3,p=99$YWJjYWJjYWJjYWJj$YWJjYWJjYWJjYWJj"},
+		{"零 memory", "$argon2id$v=19$m=0,t=3,p=4$YWJjYWJjYWJjYWJj$YWJjYWJjYWJjYWJj"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.False(t, Argon2VerifyPassword("pw", tt.encoded))
+		})
+	}
+}
+
 func TestArgon2VerifyPasswordInvalid(t *testing.T) {
 	valid, err := Argon2HashPassword("pw")
 	require.NoError(t, err)

@@ -1,7 +1,6 @@
 package aes_test
 
 import (
-	"crypto/sha256"
 	"encoding/base64"
 	"testing"
 
@@ -79,11 +78,4 @@ func BenchmarkGCMEncryptAndDecrypt(b *testing.B) {
 		cipherText, _ := gcm.Encrypt([]byte("123456"))
 		_, _ = gcm.Decrypt(cipherText)
 	}
-}
-
-func TestSha256(t *testing.T) {
-	key := "IgkibX71IEf382PT" //
-	keyb := sha256.Sum256([]byte(key))
-	t.Log("key:", key, " len:", len(key))
-	t.Log("keyb:", string(keyb[:]), " len:", len(string(keyb[:])))
 }

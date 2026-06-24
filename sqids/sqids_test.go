@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewNilOptionNoPanic(t *testing.T) {
+	// nil option 应被跳过而非 panic。
+	h, err := sqids.New(nil)
+	require.NoError(t, err)
+	require.NotNil(t, h)
+
+	encoded, err := h.Encode([]uint64{1})
+	require.NoError(t, err)
+	require.Equal(t, []uint64{1}, h.Decode(encoded))
+}
+
 func TestDefaultRoundTrip(t *testing.T) {
 	h, err := sqids.New()
 	require.NoError(t, err)

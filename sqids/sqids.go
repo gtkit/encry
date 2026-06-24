@@ -55,7 +55,9 @@ func New(opts ...Option) (Hash, error) {
 
 	var o sqids.Options
 	for _, opt := range opts {
-		opt(&o)
+		if opt != nil {
+			opt(&o)
+		}
 	}
 	s, err := sqids.New(o)
 	if err != nil {

@@ -5,6 +5,21 @@
 
 ## [Unreleased]
 
+## [v1.2.2] - 2026-06-24
+
+### Security
+- `hash.Argon2VerifyPassword` 增加 PHC 参数上限（memory≤1GiB、time≤16、threads≤16、hashLen≤1024，超限或为 0 一律返回 false），防止不可信哈希串用超大参数造成内存/CPU DoS。
+
+### Fixed
+- `sqids.New` 跳过 nil option，避免 `New(nil)` panic。
+
+### Added
+- 新增 `LICENSE`（MIT）。
+- 新增根包 `doc.go`（package encry 概览）；`Version` 常量补 GoDoc。
+
+### Changed
+- 删除无断言的 `aes` 测试 `TestSha256`（测试噪音）。
+
 ## [v1.2.1] - 2026-06-23
 
 ### Fixed
